@@ -191,151 +191,42 @@
 /**
  * 房间页面逻辑 - v2
  */
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Lock, CopyDocument, Delete, UserFilled, Promotion } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
+import { useWsStore } from '@/stores/ws'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const wsStore = useWsStore()
 
 // ---- 基础信息 ----
-const myId = ref(userStore.userInfo.id || 'player_1')
+const myId = ref(getPlayerId())
 const isHost = ref(false)
 const myReadyState = ref(false)
 const countdown = ref(0)
-let countdownTimer = null
+const navigatingToGame = ref(false)
 
 // ---- 房间信息 ----
 const roomInfo = ref({
-  id: route.params.roomId || 'room_mock',
-  name: '欢乐派对',
+  id: route.params.roomId || 'room',
+  name: '房间',
   maxPlayers: 6,
   gameDuration: 300,
   hasPassword: false,
+  password: '',
   gameMode: 'multi' // 'single' | 'multi'
 })
 
+const seed = loadRoomSeed()
+roomInfo.value = { ...roomInfo.value, ...seed.roomInfo }
+const createdByMe = ref(seed.createdByMe)
+
 // ---- 玩家列表 ----
 const players = ref([])
-
-/** 生成玩家列表 - 根据房间来源动态生成 */
-function generateMockPlayers() {
-  // ---- 读取房间配置来源 ----
-  const savedConfigRaw = sessionStorage.getItem('new_room_config')         // 自己创建的
-  const joinedRoomRaw = sessionStorage.getItem('joined_room_data')         // 从大厅加入的
-
-  let savedConfig = null
-  let joinedRoom = null
-  if (savedConfigRaw) { try { savedConfig = JSON.parse(savedConfigRaw) } catch {} }
-  if (joinedRoomRaw) { try { joinedRoom = JSON.parse(joinedRoomRaw) } catch {} }
-
-  const isSelfCreated = !!savedConfig
-  const isJoinedFromLobby = !!joinedRoom
-
-  // ---- 确定房间参数 ----
-  let maxPlayers, gameMode, gameDuration, roomName
-  if (isSelfCreated) {
-    // 自己创建的房间：用创建时的配置
-    maxPlayers = savedConfig.maxPlayers
-    gameMode = savedConfig.gameMode
-    gameDuration = savedConfig.gameDuration
-    roomName = savedConfig.name
-  } else if (isJoinedFromLobby) {
-    // 从大厅加入：用目标房间的数据
-    maxPlayers = joinedRoom.maxPlayers
-    gameMode = joinedRoom.gameMode || 'multi'
-    gameDuration = joinedRoom.gameDuration
-    roomName = joinedRoom.name
-  } else {
-    // 兜底
-    maxPlayers = 6; gameMode = 'multi'; gameDuration = 300; roomName = '默认房间'
-  }
-
-  // 单人模式强制 maxPlayers = 1
-  if (gameMode === 'single') maxPlayers = 1
-
-  roomInfo.value = {
-    id: savedConfig?.roomId || joinedRoom?.id || route.params.roomId,
-    name: roomName,
-    maxPlayers,
-    gameDuration,
-    hasPassword: savedConfig?.hasPassword || joinedRoom?.hasPassword || false,
-    gameMode
-  }
-
-  // ---- 房主判定 ----
-  if (isSelfCreated) {
-    isHost.value = true
-  } else {
-    isHost.value = false
-  }
-
-  // ---- 生成玩家列表 ----
-  // 1. 我自己
-  const myPlayer = {
-    id: myId.value,
-    nickname: userStore.userInfo.nickname || '我',
-    avatar: '',
-    level: userStore.userInfo.level || 1,
-    isHost: isHost.value,
-    isReady: isHost.value  // 房主默认已准备；加入者默认未准备
-  }
-
-  const playerList = [myPlayer]
-
-  // 2. 根据房间来源填充其他玩家
-  if (isSelfCreated && gameMode === 'multi') {
-    // 自己创建多人房间：预置 AI 玩家，数量不超过 maxPlayers - 1
-    const names = ['闪电蛇', '贪吃大王', '急速先锋', '无敌蛇王', '小菜蛇', '蛇中豪杰', '疾风']
-    const aiCount = Math.min(names.length, maxPlayers - 1)
-    for (let i = 0; i < aiCount; i++) {
-      playerList.push({
-        id: `mock_${i}`,
-        nickname: names[i],
-        avatar: '',
-        level: Math.floor(Math.random() * 8) + 1,
-        isHost: false,
-        isReady: true
-      })
-    }
-  } else if (isJoinedFromLobby && gameMode === 'multi') {
-    // 大厅加入的房间：根据 room.playerCount 生成（existingCount 是房间里已有的人数，不含自己）
-    const existingCount = joinedRoom.playerCount || Math.min(3, maxPlayers - 1)
-    const names = ['闪电蛇', '贪吃大王', '急速先锋', '无敌蛇王', '小菜蛇', '蛇中豪杰', '疾风']
-    const othersCount = Math.min(existingCount, maxPlayers - 1, names.length)
-    for (let i = 0; i < othersCount; i++) {
-      playerList.push({
-        id: `joined_${i}`,
-        nickname: names[i],
-        avatar: '',
-        level: Math.floor(Math.random() * 8) + 1,
-        isHost: false,
-        isReady: Math.random() > 0.4  // 60% 概率已准备，制造需要用户点准备的真实场景
-      })
-    }
-  }
-  // 单人模式：只有房主一个人，上面已经加了
-
-  players.value = playerList
-
-  // 清理 sessionStorage
-  sessionStorage.removeItem('new_room_config')
-  sessionStorage.removeItem('joined_room_data')
-
-  // ---- 初始聊天 ----
-  addRoomEvent('🎉 欢迎来到房间！')
-  if (isSelfCreated) {
-    addRoomEvent('你是房主，可以管理玩家并开始游戏')
-  } else {
-    addRoomEvent('请点击准备按钮，等待游戏开始')
-  }
-
-  // ---- 房间满员自动开始 ----
-  checkAutoStart()
-}
 
 // ---- 计算属性 ----
 const emptySlots = computed(() =>
@@ -352,12 +243,8 @@ const isSingleMode = computed(() => roomInfo.value.gameMode === 'single')
  *  多人模式（自己创建）：全员准备即可开始
  *  多人模式（大厅加入）：房间满员+全员准备才可开始 */
 const canStart = computed(() => {
-  if (isSingleMode.value) return isHost.value  // 只有房主能开始单人模式
-  if (isHost.value) {
-    // 自己创建的房间：检查全员准备
-    return players.value.every(p => p.isReady)
-  }
-  // 大厅加入的房间：所有人（含房主）都准备时才能开始
+  if (!isHost.value) return false
+  if (isSingleMode.value) return true
   return players.value.length >= 2 && players.value.every(p => p.isReady)
 })
 
@@ -369,35 +256,7 @@ const isJoinedRoomAllReady = computed(() => {
   return players.value.length >= 2 && players.value.every(p => p.isReady)
 })
 
-/** 房间是否已满 */
-const isRoomFull = computed(() =>
-  players.value.length >= roomInfo.value.maxPlayers
-)
-
-/** 满员自动开始（直接进入游戏，游戏内自有3秒倒计时） */
-let autoStartTimer = null
-function checkAutoStart() {
-  // 仅适用于大厅加入的房间且不是房主
-  if (isHost.value) return
-  if (!isRoomFull.value || !isJoinedRoomAllReady.value) return
-
-  // 将玩家列表信息传给 GameView
-  sessionStorage.setItem('game_players', JSON.stringify({
-    count: players.value.length,
-    gameMode: roomInfo.value.gameMode
-  }))
-  addRoomEvent('⚠ 房间已满，自动开始...')
-  addRoomEvent('🎮 游戏开始！')
-  const mode = roomInfo.value.gameMode === 'single' ? '?mode=single' : '?mode=multi'
-  setTimeout(() => router.push(`/game/${roomInfo.value.id}${mode}`), 500)
-}
-
-// 监听满员+全员准备，触发自动开始（单人模式不自动开始，需手动点击按钮）
-watch([isRoomFull, isJoinedRoomAllReady], ([full, allReady]) => {
-  if (full && allReady && !isHost.value && !autoStartTimer && !isSingleMode.value) {
-    checkAutoStart()
-  }
-})
+const offHandlers = []
 
 // ---- 聊天 ----
 const chatInput = ref('')
@@ -406,26 +265,22 @@ const showNewMsgHint = ref(false)
 const chatMessages = ref([])
 const quickEmojis = ['👍', '💪', '😄', '🎉', '😢', '👋', '⏰', '🏆']
 
-function addRoomEvent(text) {
-  chatMessages.value.push({ type: 'system', text, time: Date.now() })
-  scrollToBottom()
-}
 function sendMessage() {
   const text = chatInput.value.trim()
   if (!text) return
-  chatMessages.value.push({
-    type: 'user', senderId: myId.value,
-    senderName: userStore.userInfo.nickname || '我', text, time: Date.now()
+  wsStore.send('chat_message', {
+    roomId: roomInfo.value.id,
+    playerId: myId.value,
+    text
   })
   chatInput.value = ''
-  scrollToBottom()
 }
 function sendEmoji(emoji) {
-  chatMessages.value.push({
-    type: 'user', senderId: myId.value,
-    senderName: userStore.userInfo.nickname || '我', text: emoji, time: Date.now()
+  wsStore.send('chat_message', {
+    roomId: roomInfo.value.id,
+    playerId: myId.value,
+    text: emoji
   })
-  scrollToBottom()
 }
 function scrollToBottom() {
   nextTick(() => {
@@ -441,33 +296,42 @@ function onChatScroll() {
 
 // ---- 操作 ----
 function toggleReady() {
-  myReadyState.value = !myReadyState.value
-  const me = players.value.find(p => p.id === myId.value)
-  if (me) me.isReady = myReadyState.value
-  addRoomEvent(`${userStore.userInfo.nickname || '我'} ${myReadyState.value ? '已准备' : '取消准备'}`)
+  wsStore.send('ready', {
+    roomId: roomInfo.value.id,
+    playerId: myId.value,
+    ready: !myReadyState.value
+  })
 }
 
 /** 房主切换其他玩家的准备状态 */
 function togglePlayerReady(player) {
-  player.isReady = !player.isReady
-  addRoomEvent(`房主将 ${player.nickname} ${player.isReady ? '设为准备' : '取消准备'}`)
-  ElMessage.success(`${player.nickname} ${player.isReady ? '已准备' : '已取消准备'}`)
+  wsStore.send('ready', {
+    roomId: roomInfo.value.id,
+    playerId: myId.value,
+    targetPlayerId: player.id,
+    ready: !player.isReady
+  })
 }
 
 function handleKickPlayer(player) {
   ElMessageBox.confirm(`确定要踢出 ${player.nickname} 吗？`, '踢出玩家', {
     confirmButtonText: '确定', type: 'warning'
   }).then(() => {
-    players.value = players.value.filter(p => p.id !== player.id)
-    addRoomEvent(`${player.nickname} 被房主踢出房间`)
-    ElMessage.success(`已踢出 ${player.nickname}`)
+    wsStore.send('kick_player', {
+      roomId: roomInfo.value.id,
+      playerId: myId.value,
+      targetPlayerId: player.id
+    })
   }).catch(() => {})
 }
 
 /** 房主开始游戏 */
 function handleStartGame() {
   if (!canStart.value) return
-  startCountdown()
+  wsStore.send('start_game', {
+    roomId: roomInfo.value.id,
+    playerId: myId.value
+  })
 }
 
 /** 加入房间的玩家开始游戏 */
@@ -476,20 +340,11 @@ function handleJoinedStart() {
     ElMessage.warning(`还有 ${players.value.length - readyCount.value} 人未准备`)
     return
   }
-  startCountdown()
-}
-
-/** 统一开始游戏（移除房间内倒计时，游戏内自有3秒倒计时） */
-function startCountdown() {
-  if (autoStartTimer) { clearInterval(autoStartTimer); autoStartTimer = null }
-  // 将玩家列表信息传给 GameView，确保蛇的数量与房间一致
-  sessionStorage.setItem('game_players', JSON.stringify({
-    count: players.value.length,
-    gameMode: roomInfo.value.gameMode
-  }))
-  addRoomEvent('🎮 游戏开始！')
-  const mode = roomInfo.value.gameMode === 'single' ? '?mode=single' : '?mode=multi'
-  setTimeout(() => router.push(`/game/${roomInfo.value.id}${mode}`), 300)
+  if (!isHost.value) {
+    ElMessage.info('等待房主开始游戏')
+    return
+  }
+  handleStartGame()
 }
 
 function handleLeaveRoom() {
@@ -497,7 +352,7 @@ function handleLeaveRoom() {
   ElMessageBox.confirm('确定要退出房间吗？', '退出房间', {
     confirmButtonText: '确定', type: 'warning'
   }).then(() => {
-    if (countdownTimer) clearInterval(countdownTimer)
+    wsStore.send('leave_room', { roomId: roomInfo.value.id, playerId: myId.value })
     router.push('/lobby')
   }).catch(() => {})
 }
@@ -509,34 +364,132 @@ function copyRoomId() {
 }
 function formatDuration(s) { const m = Math.floor(s / 60); return m + '分钟' }
 
-// ---- 自动加入模拟 ----
-let mockJoinTimer = null
-function startMockJoins() {
-  mockJoinTimer = setTimeout(() => {
-    if (players.value.length < roomInfo.value.maxPlayers) {
-      const names = ['蛇蛇侠', '绿野仙踪', '青蛇白蛇', '草丛猎手']
-      const newPlayer = {
-        id: 'mock_auto_' + Date.now(),
-        nickname: names[Math.floor(Math.random() * names.length)],
-        avatar: '', level: Math.floor(Math.random() * 5) + 1,
-        isHost: false, isReady: true
-      }
-      players.value.push(newPlayer)
-      addRoomEvent(`${newPlayer.nickname} 加入了房间`)
-    }
-    startMockJoins()
-  }, 10000 + Math.random() * 8000)
+function registerHandlers() {
+  offHandlers.push(wsStore.on('room_update', handleRoomUpdate))
+  offHandlers.push(wsStore.on('countdown', handleCountdown))
+  offHandlers.push(wsStore.on('game_start', handleGameStart))
+  offHandlers.push(wsStore.on('chat_broadcast', handleChatBroadcast))
+  offHandlers.push(wsStore.on('error', handleError))
+}
+
+async function connectAndJoin() {
+  registerHandlers()
+  try {
+    await wsStore.connect()
+  } catch {
+    ElMessage.error('无法连接服务器')
+    return
+  }
+
+  wsStore.send('join_room', {
+    roomId: roomInfo.value.id,
+    roomName: roomInfo.value.name,
+    playerId: myId.value,
+    nickname: userStore.userInfo.nickname || 'Player',
+    avatar: userStore.userInfo.avatar || '',
+    level: userStore.userInfo.level || 1,
+    gameMode: roomInfo.value.gameMode,
+    maxPlayers: roomInfo.value.maxPlayers,
+    gameDuration: roomInfo.value.gameDuration,
+    hasPassword: roomInfo.value.hasPassword,
+    password: roomInfo.value.password || '',
+    create: createdByMe.value,
+    allowBots: false
+  })
+}
+
+function handleRoomUpdate(data) {
+  if (!data) return
+  roomInfo.value = { ...roomInfo.value, ...data.roomInfo, id: data.roomId || roomInfo.value.id }
+  players.value = data.players || []
+  isHost.value = roomInfo.value.hostId === myId.value
+  const me = players.value.find(p => p.id === myId.value)
+  myReadyState.value = me?.isReady || false
+}
+
+function handleCountdown(data) {
+  countdown.value = data?.seconds ?? 0
+}
+
+function handleGameStart(data) {
+  navigatingToGame.value = true
+  sessionStorage.setItem('current_room', JSON.stringify({
+    roomId: roomInfo.value.id,
+    gameMode: roomInfo.value.gameMode,
+    gameDuration: roomInfo.value.gameDuration,
+    maxPlayers: roomInfo.value.maxPlayers
+  }))
+  const mode = roomInfo.value.gameMode === 'single' ? '?mode=single' : '?mode=multi'
+  router.push(`/game/${roomInfo.value.id}${mode}`)
+}
+
+function handleChatBroadcast(data) {
+  if (!data) return
+  if (data.type === 'system') {
+    chatMessages.value.push({ type: 'system', text: data.text, time: data.time || Date.now() })
+  } else {
+    chatMessages.value.push({
+      type: 'user',
+      senderId: data.senderId,
+      senderName: data.senderName,
+      text: data.text,
+      time: data.time || Date.now()
+    })
+  }
+  scrollToBottom()
+}
+
+function handleError(data) {
+  ElMessage.error(data?.message || '服务器错误')
+}
+
+function loadRoomSeed() {
+  const savedConfigRaw = sessionStorage.getItem('new_room_config')
+  const joinedRoomRaw = sessionStorage.getItem('joined_room_data')
+
+  let savedConfig = null
+  let joinedRoom = null
+  if (savedConfigRaw) { try { savedConfig = JSON.parse(savedConfigRaw) } catch {} }
+  if (joinedRoomRaw) { try { joinedRoom = JSON.parse(joinedRoomRaw) } catch {} }
+
+  const isSelfCreated = !!savedConfig
+  const maxPlayers = savedConfig?.maxPlayers || joinedRoom?.maxPlayers || 6
+  const gameMode = savedConfig?.gameMode || joinedRoom?.gameMode || 'multi'
+
+  const info = {
+    id: savedConfig?.roomId || joinedRoom?.id || route.params.roomId || 'room_' + Date.now(),
+    name: savedConfig?.name || joinedRoom?.name || '房间',
+    maxPlayers: gameMode === 'single' ? 1 : maxPlayers,
+    gameDuration: savedConfig?.gameDuration || joinedRoom?.gameDuration || 300,
+    hasPassword: savedConfig?.hasPassword || joinedRoom?.hasPassword || false,
+    password: savedConfig?.password || joinedRoom?.password || '',
+    gameMode
+  }
+
+  sessionStorage.removeItem('new_room_config')
+  sessionStorage.removeItem('joined_room_data')
+
+  return { roomInfo: info, createdByMe: isSelfCreated }
+}
+
+function getPlayerId() {
+  if (userStore.userInfo.id) return userStore.userInfo.id
+  const cached = localStorage.getItem('snake_player_id')
+  if (cached) return cached
+  const id = 'player_' + Date.now() + '_' + Math.floor(Math.random() * 10000)
+  localStorage.setItem('snake_player_id', id)
+  return id
 }
 
 onMounted(() => {
-  generateMockPlayers()
-  startMockJoins()
+  connectAndJoin()
 })
 
 onUnmounted(() => {
-  if (countdownTimer) clearInterval(countdownTimer)
-  if (autoStartTimer) clearInterval(autoStartTimer)
-  if (mockJoinTimer) clearTimeout(mockJoinTimer)
+  offHandlers.forEach(off => off())
+  if (!navigatingToGame.value) {
+    wsStore.send('leave_room', { roomId: roomInfo.value.id, playerId: myId.value })
+  }
 })
 </script>
 

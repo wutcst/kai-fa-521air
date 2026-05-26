@@ -19,21 +19,20 @@ request.interceptors.request.use(config => {
 })
 
 /**
+ * 获取在线人数
+ */
+export async function getOnlineCountApi() {
+  const response = await request.get(`${BASE_URL}/online-count`)
+  return response.data
+}
+
+/**
  * 获取房间列表
  * @param {object} params 筛选条件 { page, size, status, keyword }
  */
 export async function getRoomListApi(params = {}) {
-  // ---- Mock 占位 ----
-  await new Promise(resolve => setTimeout(resolve, 300))
-  return {
-    list: [],
-    total: 0,
-    page: params.page || 1,
-    size: params.size || 10
-  }
-
-  // const response = await request.get(`${BASE_URL}/list`, { params })
-  // return response.data
+  const response = await request.get(`${BASE_URL}/list`, { params })
+  return response.data
 }
 
 /**

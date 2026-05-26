@@ -26,16 +26,11 @@ export default defineConfig({
   server: {
     port: 5173,
     host: '0.0.0.0', // 允许局域网访问，方便移动端调试
-    // 开发环境代理配置 - 后续对接后端时启用
-    // proxy: {
-    //   '/api': {
-    //     target: 'http://localhost:8080',
-    //     changeOrigin: true
-    //   },
-    //   '/ws': {
-    //     target: 'ws://localhost:8080',
-    //     ws: true
-    //   }
-    // }
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      }
+    }
   }
 })

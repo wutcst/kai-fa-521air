@@ -44,8 +44,8 @@
 
       <!-- 连接状态 -->
       <div class="hud-item connection">
-        <span class="status-dot green"></span>
-        <span class="status-text">Mock模式</span>
+        <span :class="['status-dot', isConnected ? 'green' : 'red']"></span>
+        <span class="status-text">{{ isConnected ? '已连接' : '未连接' }}</span>
       </div>
 
       <!-- 退出对局 -->
@@ -150,25 +150,34 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Clock, Trophy, Aim } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useGameStore } from '@/stores/game'
 import GameCanvas from '@/components/GameCanvas.vue'
 import ScoreBoard from '@/components/ScoreBoard.vue'
 import ChatBox from '@/components/ChatBox.vue'
+import { useWsStore } from '@/stores/ws'
 import { createMockGame } from '@/mock/gameServer'
+
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const gameStore = useGameStore()
+const wsStore = useWsStore()
 
 const gameViewRef = ref(null)
 const gameCanvasRef = ref(null)
 
+// ---- Mock 游戏服务器 ----
+let mockGameServer = null
+
 // ---- 游戏模式 ----
 const gameMode = ref(route.query.mode || 'multi') // 'single' | 'multi'
+const roomSeed = loadRoomSeed()
+if (roomSeed.gameMode) gameMode.value = roomSeed.gameMode
 
 // ---- 游戏状态 ----
 const isRunning = ref(false)
@@ -176,6 +185,7 @@ const isGameOver = ref(false)
 const gameState = ref({})
 const mapW = ref(60)
 const mapH = ref(60)
+const isConnected = computed(() => USE_MOCK ? true : wsStore.isConnected)
 
 // ---- HUD ----
 const mySnakeData = computed(() => {
@@ -232,9 +242,10 @@ const itemSlots = computed(() => {
 const chatMsgs = ref([{ type: 'system', text: '🎮 游戏开始！', time: Date.now() }])
 
 function onChatSend(text) {
-  chatMsgs.value.push({
-    type: 'user', senderId: 'me',
-    senderName: userStore.userInfo.nickname || '我', text, time: Date.now()
+  wsStore.send('chat_message', {
+    roomId: roomSeed.roomId || route.params.roomId,
+    playerId: getPlayerId(),
+    text
   })
 }
 
@@ -250,56 +261,6 @@ function addToast(text, type = 'info') {
 // ---- 倒计时 ----
 const showStartCountdown = ref(false)
 const startCount = ref(3)
-
-function startGameCountdown() {
-  showStartCountdown.value = true
-  startCount.value = 3
-  const timer = setInterval(() => {
-    startCount.value--
-    if (startCount.value <= 0) {
-      clearInterval(timer)
-      showStartCountdown.value = false
-      initMockGame()
-    }
-  }, 1000)
-}
-
-// ---- Mock 引擎 ----
-let mockGame = null
-
-function initMockGame() {
-  const myId = userStore.userInfo.id || 'player_me'
-  const isSingle = gameMode.value === 'single'
-
-  // 从房间传入的玩家数据中读取实际玩家数
-  let playerCount = isSingle ? 1 : 5
-  const savedPlayersRaw = sessionStorage.getItem('game_players')
-  if (savedPlayersRaw) {
-    try {
-      const saved = JSON.parse(savedPlayersRaw)
-      playerCount = saved.count || playerCount
-      sessionStorage.removeItem('game_players')
-    } catch {}
-  }
-
-  mockGame = createMockGame({
-    playerCount,
-    gameDuration: isSingle ? Infinity : 300,
-    gameMode: gameMode.value,
-    mySnakeId: myId,
-    onStateUpdate: (state) => {
-      gameState.value = state
-    },
-    onEvent: (type, data) => {
-      handleGameEvent(type, data)
-    }
-  })
-
-  mapW.value = 60
-  mapH.value = 60
-  mockGame.initGame()
-  isRunning.value = true
-}
 
 function handleGameEvent(type, data) {
   switch (type) {
@@ -336,7 +297,7 @@ function handleGameEvent(type, data) {
         gameId: data.gameId,
         rankings: data.rankings,
         myRank: data.rankings?.findIndex(r => r.isMe) + 1,
-        gameMode: gameMode.value
+        gameMode: data.gameMode || gameMode.value
       }))
       break
   }
@@ -355,14 +316,55 @@ function handleKeyDown(e) {
     e.preventDefault()
     if (dir !== lastDirection) {
       lastDirection = dir
-      mockGame?.setDirection(dir)
+      if (USE_MOCK && mockGameServer) {
+        mockGameServer.setDirection(dir)
+      } else {
+        wsStore.send('change_direction', {
+          roomId: roomSeed.roomId || route.params.roomId,
+          playerId: getPlayerId(),
+          direction: dir
+        })
+      }
     }
     return
   }
-  if (e.key === ' ') { e.preventDefault(); mockGame?.useItem('speed'); addToast('⚡ 加速！', 'item'); return }
-  if (e.key === '1') { e.preventDefault(); mockGame?.useItem('speed'); addToast('⚡ 加速道具！', 'item') }
-  if (e.key === '2') { e.preventDefault(); mockGame?.useItem('shield'); addToast('🛡 护盾！', 'item') }
-  if (e.key === '3') { e.preventDefault(); mockGame?.useItem('magnet'); addToast('🧲 磁铁！', 'item') }
+  if (e.key === ' ') {
+    e.preventDefault()
+    if (USE_MOCK && mockGameServer) {
+      mockGameServer.useItem('speed')
+    } else {
+      wsStore.send('speed_boost', { roomId: roomSeed.roomId || route.params.roomId, playerId: getPlayerId() })
+    }
+    addToast('⚡ 加速！', 'item')
+    return
+  }
+  if (e.key === '1') {
+    e.preventDefault()
+    if (USE_MOCK && mockGameServer) {
+      mockGameServer.useItem('speed')
+    } else {
+      wsStore.send('use_item', { roomId: roomSeed.roomId || route.params.roomId, playerId: getPlayerId(), itemType: 'speed' })
+    }
+    addToast('⚡ 加速道具！', 'item')
+  }
+  if (e.key === '2') {
+    e.preventDefault()
+    if (USE_MOCK && mockGameServer) {
+      mockGameServer.useItem('shield')
+    } else {
+      wsStore.send('use_item', { roomId: roomSeed.roomId || route.params.roomId, playerId: getPlayerId(), itemType: 'shield' })
+    }
+    addToast('🛡 护盾！', 'item')
+  }
+  if (e.key === '3') {
+    e.preventDefault()
+    if (USE_MOCK && mockGameServer) {
+      mockGameServer.useItem('magnet')
+    } else {
+      wsStore.send('use_item', { roomId: roomSeed.roomId || route.params.roomId, playerId: getPlayerId(), itemType: 'magnet' })
+    }
+    addToast('🧲 磁铁！', 'item')
+  }
 }
 
 function formatTime(seconds) {
@@ -372,12 +374,13 @@ function formatTime(seconds) {
 }
 
 function goToResult() {
+  leaveRoom()
   router.push(`/result/${sessionStorage.getItem('game_result') ? JSON.parse(sessionStorage.getItem('game_result')).gameId : 'latest'}`)
 }
 
 /** 死亡后退出到大厅（多人模式） */
 function exitToLobby() {
-  mockGame?.destroy()
+  leaveRoom()
   isRunning.value = false
   router.push('/lobby')
 }
@@ -389,7 +392,7 @@ function handleExitGame() {
     cancelButtonText: '继续游戏',
     type: 'warning'
   }).then(() => {
-    mockGame?.destroy()
+    leaveRoom()
     isRunning.value = false
     router.push('/lobby')
   }).catch(() => {})
@@ -400,15 +403,153 @@ function dismissDeath() {
   showDeathOverlay.value = false
 }
 
+const offHandlers = []
+const leaving = ref(false)
+
+function leaveRoom() {
+  if (leaving.value) return
+  leaving.value = true
+  wsStore.send('leave_room', {
+    roomId: roomSeed.roomId || route.params.roomId,
+    playerId: getPlayerId()
+  })
+}
+
+function registerHandlers() {
+  offHandlers.push(wsStore.on('*', (data, raw) => {
+    console.log('[GameView] WS message received:', raw?.type, raw?.type === 'game_state' ? `(snakes: ${Object.keys(data?.snakes || {}).length})` : '')
+  }))
+  offHandlers.push(wsStore.on('game_state', handleGameState))
+  offHandlers.push(wsStore.on('game_start', (data) => handleGameEvent('game_start', data)))
+  offHandlers.push(wsStore.on('player_eliminated', (data) => handleGameEvent('player_eliminated', data)))
+  offHandlers.push(wsStore.on('player_kill', (data) => handleGameEvent('player_kill', data)))
+  offHandlers.push(wsStore.on('item_picked', (data) => handleGameEvent('item_picked', data)))
+  offHandlers.push(wsStore.on('shield_used', (data) => handleGameEvent('shield_used', data)))
+  offHandlers.push(wsStore.on('game_over', (data) => handleGameEvent('game_over', data)))
+  offHandlers.push(wsStore.on('countdown', handleCountdown))
+  offHandlers.push(wsStore.on('chat_broadcast', handleChatBroadcast))
+  offHandlers.push(wsStore.on('error', handleError))
+}
+
+function handleGameState(state) {
+  console.log('[GameView] game_state received:', state?.gameStatus, state?.gameTime, Object.keys(state?.snakes || {}).length, 'snakes')
+  if (!state) return
+  gameState.value = state
+  mapW.value = state.mapWidth || mapW.value
+  mapH.value = state.mapHeight || mapH.value
+  if (state.gameStatus === 'playing' || state.gameStatus === 'finished') {
+    if (!isRunning.value) console.log('[GameView] Starting game loop')
+    isRunning.value = true
+  }
+}
+
+function handleCountdown(data) {
+  const seconds = data?.seconds ?? 0
+  startCount.value = seconds
+  showStartCountdown.value = seconds > 0
+}
+
+function handleChatBroadcast(data) {
+  if (!data) return
+  if (data.type === 'system') {
+    chatMsgs.value.push({ type: 'system', text: data.text, time: data.time || Date.now() })
+  } else {
+    chatMsgs.value.push({
+      type: 'user',
+      senderId: data.senderId,
+      senderName: data.senderName,
+      text: data.text,
+      time: data.time || Date.now()
+    })
+  }
+}
+
+function handleError(data) {
+  ElMessage.error(data?.message || '服务器错误')
+}
+
+function loadRoomSeed() {
+  const raw = sessionStorage.getItem('current_room')
+  if (!raw) return {}
+  try { return JSON.parse(raw) } catch { return {} }
+}
+
+function getPlayerId() {
+  if (userStore.userInfo.id) return userStore.userInfo.id
+  const cached = localStorage.getItem('snake_player_id')
+  if (cached) return cached
+  const id = 'player_' + Date.now() + '_' + Math.floor(Math.random() * 10000)
+  localStorage.setItem('snake_player_id', id)
+  return id
+}
+
+async function connectAndJoin() {
+  if (USE_MOCK) {
+    ElMessage.success('使用Mock模式启动游戏')
+    startMockGame()
+  } else {
+    registerHandlers()
+    try {
+      await wsStore.connect()
+    } catch {
+      ElMessage.error('无法连接服务器')
+      return
+    }
+
+    wsStore.send('join_room', {
+      roomId: roomSeed.roomId || route.params.roomId,
+      roomName: roomSeed.roomName,
+      playerId: getPlayerId(),
+      nickname: userStore.userInfo.nickname || 'Player',
+      avatar: userStore.userInfo.avatar || '',
+      level: userStore.userInfo.level || 1,
+      gameMode: gameMode.value,
+      maxPlayers: roomSeed.maxPlayers || 6,
+      gameDuration: roomSeed.gameDuration || 300,
+      hasPassword: false,
+      password: '',
+      create: false,
+      allowBots: false
+    })
+  }
+}
+
+function startMockGame() {
+  const myId = getPlayerId()
+  
+  mockGameServer = createMockGame({
+    playerCount: gameMode.value === 'single' ? 1 : 4,
+    gameDuration: gameMode.value === 'single' ? Infinity : 300,
+    gameMode: gameMode.value,
+    mySnakeId: myId,
+    onStateUpdate: (state) => {
+      handleGameState(state)
+    },
+    onEvent: (eventType, data) => {
+      handleGameEvent(eventType, data)
+    }
+  })
+
+  mockGameServer.initGame()
+}
+
 onMounted(() => {
   nextTick(() => {
     gameViewRef.value?.focus()
-    startGameCountdown()
   })
+  connectAndJoin()
 })
 
 onUnmounted(() => {
-  mockGame?.destroy()
+  if (USE_MOCK && mockGameServer) {
+    mockGameServer.destroy()
+    mockGameServer = null
+  } else {
+    offHandlers.forEach(off => off())
+    if (!leaving.value) {
+      leaveRoom()
+    }
+  }
   isRunning.value = false
 })
 </script>
@@ -441,6 +582,7 @@ onUnmounted(() => {
 .hud-item.score .score-label { font-size: 12px; color: var(--text-secondary); }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .status-dot.green { background: #66bb6a; }
+.status-dot.red { background: #ef5350; }
 .status-text { font-size: 11px; color: var(--text-muted); }
 .exit-btn { margin-left: auto; font-size: 12px; }
 

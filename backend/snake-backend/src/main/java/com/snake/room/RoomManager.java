@@ -1,0 +1,738 @@
+package com.snake.room;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.snake.game.GameEngine;
+import com.snake.game.GameEngine.GameEvent;
+import com.snake.game.GameEngine.GameMode;
+import com.snake.game.GameEngine.GameResult;
+import com.snake.game.GameEngine.GameStateSnapshot;
+import com.snake.game.GameEngine.PlayerSeed;
+import com.snake.game.GameEngine.ScoreEntry;
+import com.snake.game.GameEngine.SnakeState;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketSession;
+import jakarta.annotation.PreDestroy;
+
+@Service
+public class RoomManager {
+    private static final Logger log = LoggerFactory.getLogger(RoomManager.class);
+    private static final int COUNTDOWN_SECONDS = 3;
+    private static final List<String> BOT_NAMES = List.of(
+        "Swift", "Chaser", "Viper", "Shadow", "Blaze", "Nova", "Echo", "Rogue"
+    );
+
+    private final ObjectMapper objectMapper;
+    private final Map<String, Room> rooms = new ConcurrentHashMap<>();
+    private final Map<String, SessionRef> sessionIndex = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);
+
+    public RoomManager(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
+    public void joinRoom(WebSocketSession session, JoinRoomRequest request) {
+        if (request == null) {
+            sendError(session, "invalid request");
+            return;
+        }
+
+        String playerId = fallback(request.playerId(), "player_" + session.getId());
+        String roomId = fallback(request.roomId(), "room_" + System.currentTimeMillis());
+
+        Room room = rooms.computeIfAbsent(roomId, id -> createRoom(id, request));
+        synchronized (room.getLock()) {
+            if (room.getStatus() == RoomStatus.PLAYING && !room.getPlayers().containsKey(playerId)) {
+                sendError(session, "room is playing");
+                return;
+            }
+            if (room.isHasPassword() && room.getPassword() != null
+                && !Objects.equals(room.getPassword(), request.password())) {
+                sendError(session, "invalid password");
+                return;
+            }
+
+            if (!room.getPlayers().containsKey(playerId)) {
+                if (room.getPlayers().size() >= room.getMaxPlayers()) {
+                    sendError(session, "room is full");
+                    return;
+                }
+                boolean isHost = room.getHostId() == null || request.create();
+                Player player = new Player(playerId, safeName(request.nickname()), request.avatar(), request.level(), isHost);
+                player.setSession(session);
+                room.getPlayers().put(playerId, player);
+                if (isHost) {
+                    room.setHostId(playerId);
+                    for (Player p : room.getPlayers().values()) {
+                        p.setHost(Objects.equals(p.getId(), playerId));
+                    }
+                }
+                broadcastSystem(room, player.getNickname() + " joined the room");
+            } else {
+                Player player = room.getPlayers().get(playerId);
+                player.setSession(session);
+            }
+        }
+
+        sessionIndex.put(session.getId(), new SessionRef(roomId, playerId));
+        broadcastRoomUpdate(room);
+    }
+
+    public void leaveRoom(WebSocketSession session, LeaveRoomRequest request) {
+        SessionRef ref = getSessionRef(session, request == null ? null : request.roomId());
+        if (ref == null) {
+            return;
+        }
+        Room room = rooms.get(ref.roomId());
+        if (room == null) {
+            return;
+        }
+
+        Player removed;
+        synchronized (room.getLock()) {
+            removed = room.getPlayers().remove(ref.playerId());
+            if (removed != null && room.getEngine() != null) {
+                room.getEngine().eliminatePlayer(removed.getId(), "left room");
+            }
+            if (Objects.equals(room.getHostId(), ref.playerId())) {
+                room.setHostId(room.getPlayers().values().stream().findFirst().map(Player::getId).orElse(null));
+                for (Player player : room.getPlayers().values()) {
+                    player.setHost(Objects.equals(player.getId(), room.getHostId()));
+                }
+            }
+        }
+
+        if (removed != null) {
+            broadcastSystem(room, removed.getNickname() + " left the room");
+        }
+        broadcastRoomUpdate(room);
+        cleanupIfEmpty(room);
+    }
+
+    public void setReady(WebSocketSession session, ReadyRequest request) {
+        SessionRef ref = getSessionRef(session, request == null ? null : request.roomId());
+        if (ref == null) {
+            return;
+        }
+        Room room = rooms.get(ref.roomId());
+        if (room == null) {
+            return;
+        }
+
+        synchronized (room.getLock()) {
+            Player actor = room.getPlayers().get(ref.playerId());
+            if (actor == null) {
+                return;
+            }
+
+            String targetId = request != null && request.targetPlayerId() != null ? request.targetPlayerId() : actor.getId();
+            if (!Objects.equals(targetId, actor.getId()) && !actor.isHost()) {
+                sendError(session, "only host can change others");
+                return;
+            }
+
+            Player target = room.getPlayers().get(targetId);
+            if (target == null) {
+                return;
+            }
+
+            boolean nextReady = request != null && request.ready() != null
+                ? request.ready()
+                : !target.isReady();
+            target.setReady(nextReady);
+            broadcastSystem(room, target.getNickname() + (nextReady ? " is ready" : " is not ready"));
+        }
+
+        broadcastRoomUpdate(room);
+    }
+
+    public void kickPlayer(WebSocketSession session, KickRequest request) {
+        SessionRef ref = getSessionRef(session, request == null ? null : request.roomId());
+        if (ref == null || request == null || request.targetPlayerId() == null) {
+            return;
+        }
+        Room room = rooms.get(ref.roomId());
+        if (room == null) {
+            return;
+        }
+
+        synchronized (room.getLock()) {
+            Player actor = room.getPlayers().get(ref.playerId());
+            if (actor == null || !actor.isHost()) {
+                sendError(session, "only host can kick");
+                return;
+            }
+            Player target = room.getPlayers().remove(request.targetPlayerId());
+            if (target == null) {
+                return;
+            }
+            if (room.getEngine() != null) {
+                room.getEngine().eliminatePlayer(target.getId(), "kicked");
+            }
+            broadcastSystem(room, target.getNickname() + " was kicked");
+        }
+
+        broadcastRoomUpdate(room);
+        cleanupIfEmpty(room);
+    }
+
+    public void startGame(WebSocketSession session, StartGameRequest request) {
+        SessionRef ref = getSessionRef(session, request == null ? null : request.roomId());
+        if (ref == null) {
+            return;
+        }
+        Room room = rooms.get(ref.roomId());
+        if (room == null) {
+            return;
+        }
+
+        synchronized (room.getLock()) {
+            Player actor = room.getPlayers().get(ref.playerId());
+            if (actor == null || !actor.isHost()) {
+                sendError(session, "only host can start");
+                return;
+            }
+            if (room.getStatus() != RoomStatus.WAITING) {
+                sendError(session, "room not ready");
+                return;
+            }
+            if (GameMode.from(room.getGameMode()) == GameMode.MULTI) {
+                if (room.getPlayers().size() < 2) {
+                    sendError(session, "need at least 2 players");
+                    return;
+                }
+                boolean allReady = room.getPlayers().values().stream().allMatch(Player::isReady);
+                if (!allReady) {
+                    sendError(session, "not all players ready");
+                    return;
+                }
+            }
+            startCountdown(room);
+        }
+    }
+
+    public void changeDirection(WebSocketSession session, DirectionRequest request) {
+        SessionRef ref = getSessionRef(session, request == null ? null : request.roomId());
+        if (ref == null || request == null) {
+            return;
+        }
+        Room room = rooms.get(ref.roomId());
+        if (room == null || room.getEngine() == null) {
+            return;
+        }
+        room.getEngine().setDirection(ref.playerId(), GameEngine.Direction.from(request.direction()));
+    }
+
+    public void useItem(WebSocketSession session, ItemRequest request) {
+        SessionRef ref = getSessionRef(session, request == null ? null : request.roomId());
+        if (ref == null || request == null) {
+            return;
+        }
+        Room room = rooms.get(ref.roomId());
+        if (room == null || room.getEngine() == null) {
+            return;
+        }
+        room.getEngine().useItem(ref.playerId(), request.itemType());
+    }
+
+    public void boostSpeed(WebSocketSession session, SpeedBoostRequest request) {
+        SessionRef ref = getSessionRef(session, request == null ? null : request.roomId());
+        if (ref == null) {
+            return;
+        }
+        Room room = rooms.get(ref.roomId());
+        if (room == null || room.getEngine() == null) {
+            return;
+        }
+        room.getEngine().useItem(ref.playerId(), "speed");
+    }
+
+    public void chat(WebSocketSession session, ChatRequest request) {
+        SessionRef ref = getSessionRef(session, request == null ? null : request.roomId());
+        if (ref == null || request == null || request.text() == null) {
+            return;
+        }
+        Room room = rooms.get(ref.roomId());
+        if (room == null) {
+            return;
+        }
+        Player sender = room.getPlayers().get(ref.playerId());
+        if (sender == null) {
+            return;
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", "user");
+        payload.put("senderId", sender.getId());
+        payload.put("senderName", sender.getNickname());
+        payload.put("text", request.text());
+        payload.put("time", System.currentTimeMillis());
+        broadcast(room, "chat_broadcast", payload);
+    }
+
+    public void handleDisconnect(WebSocketSession session) {
+        SessionRef ref = sessionIndex.remove(session.getId());
+        if (ref == null) {
+            return;
+        }
+        Room room = rooms.get(ref.roomId());
+        if (room == null) {
+            return;
+        }
+
+        Player removed;
+        synchronized (room.getLock()) {
+            removed = room.getPlayers().remove(ref.playerId());
+            if (removed != null && room.getEngine() != null) {
+                room.getEngine().eliminatePlayer(removed.getId(), "disconnected");
+            }
+            if (Objects.equals(room.getHostId(), ref.playerId())) {
+                room.setHostId(room.getPlayers().values().stream().findFirst().map(Player::getId).orElse(null));
+                for (Player player : room.getPlayers().values()) {
+                    player.setHost(Objects.equals(player.getId(), room.getHostId()));
+                }
+            }
+        }
+
+        if (removed != null) {
+            broadcastSystem(room, removed.getNickname() + " disconnected");
+            broadcastRoomUpdate(room);
+        }
+        cleanupIfEmpty(room);
+    }
+
+    public void sendMessage(WebSocketSession session, String type, Object data) {
+        send(session, type, data);
+    }
+
+    public int getOnlineCount() {
+        return sessionIndex.size();
+    }
+
+    public RoomListResponse listRooms(RoomQuery query) {
+        int page = query != null && query.page() > 0 ? query.page() : 1;
+        int size = query != null && query.size() > 0 ? query.size() : 10;
+        String statusFilter = normalize(query == null ? null : query.status());
+        String keyword = query == null ? null : query.keyword();
+        String modeFilter = normalize(query == null ? null : query.mode());
+
+        List<RoomSummary> all = new ArrayList<>();
+        for (Room room : rooms.values()) {
+            all.add(toSummary(room));
+        }
+
+        List<RoomSummary> filtered = new ArrayList<>();
+        for (RoomSummary summary : all) {
+            if (statusFilter != null && !"all".equals(statusFilter)) {
+                if (!statusFilter.equals(summary.status())) {
+                    continue;
+                }
+            }
+            if (modeFilter != null && !"all".equals(modeFilter)) {
+                if (summary.gameMode() == null || !modeFilter.equalsIgnoreCase(summary.gameMode())) {
+                    continue;
+                }
+            }
+            if (keyword != null && !keyword.isBlank()) {
+                if (summary.name() == null || !summary.name().contains(keyword)) {
+                    continue;
+                }
+            }
+            filtered.add(summary);
+        }
+
+        int total = filtered.size();
+        int from = (page - 1) * size;
+        int to = Math.min(from + size, total);
+        List<RoomSummary> pageList = from >= total ? List.of() : filtered.subList(from, to);
+
+        return new RoomListResponse(pageList, total, page, size);
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        scheduler.shutdownNow();
+    }
+
+    private void startCountdown(Room room) {
+        if (room.getCountdownTask() != null) {
+            return;
+        }
+        room.setStatus(RoomStatus.COUNTDOWN);
+        room.setCountdownSeconds(COUNTDOWN_SECONDS);
+        broadcast(room, "countdown", Map.of("seconds", COUNTDOWN_SECONDS));
+        broadcastRoomUpdate(room);
+
+        ScheduledFuture<?> task = scheduler.scheduleAtFixedRate(() -> {
+            synchronized (room.getLock()) {
+                int next = room.getCountdownSeconds() - 1;
+                room.setCountdownSeconds(next);
+                if (next <= 0) {
+                    ScheduledFuture<?> current = room.getCountdownTask();
+                    if (current != null) {
+                        current.cancel(false);
+                    }
+                    room.setCountdownTask(null);
+                    beginGame(room);
+                } else {
+                    broadcast(room, "countdown", Map.of("seconds", next));
+                }
+            }
+        }, 1, 1, TimeUnit.SECONDS);
+        room.setCountdownTask(task);
+    }
+
+    private void beginGame(Room room) {
+        room.setStatus(RoomStatus.PLAYING);
+        broadcastRoomUpdate(room);
+        List<PlayerSeed> seeds = new ArrayList<>();
+        room.getPlayers().values().forEach(p -> seeds.add(new PlayerSeed(p.getId(), p.getNickname(), false)));
+
+        if (room.isAllowBots() && room.getPlayers().size() < room.getMaxPlayers()) {
+            int botsToAdd = room.getMaxPlayers() - room.getPlayers().size();
+            for (int i = 0; i < botsToAdd; i++) {
+                String botId = "bot_" + (i + 1) + "_" + room.getId();
+                String name = BOT_NAMES.get(i % BOT_NAMES.size());
+                seeds.add(new PlayerSeed(botId, name, true));
+            }
+        }
+
+        log.info("Starting game engine for room {} with {} players (mode={})", room.getId(), seeds.size(), room.getGameMode());
+        GameEngine engine = new GameEngine(GameMode.from(room.getGameMode()), room.getGameDuration(), seeds);
+        room.setEngine(engine);
+
+        engine.start(
+            scheduler,
+            state -> broadcastGameState(room, state),
+            event -> broadcastEvent(room, event),
+            result -> handleGameOver(room, result)
+        );
+
+        log.info("Game engine started for room {}", room.getId());
+        broadcast(room, "game_start", Map.of("roomId", room.getId(), "gameMode", room.getGameMode()));
+    }
+
+    private void handleGameOver(Room room, GameResult result) {
+        room.setStatus(RoomStatus.FINISHED);
+        broadcastRoomUpdate(room);
+        for (Player player : room.getPlayers().values()) {
+            GameResult decorated = decorateResultForPlayer(result, player.getId());
+            send(player.getSession(), "game_over", decorated);
+        }
+    }
+
+    private void broadcastGameState(Room room, GameStateSnapshot snapshot) {
+        for (Player player : room.getPlayers().values()) {
+            GameStateSnapshot decorated = decorateStateForPlayer(snapshot, player.getId());
+            send(player.getSession(), "game_state", decorated);
+        }
+    }
+
+    private void broadcastEvent(Room room, GameEvent event) {
+        broadcast(room, event.type(), event.data());
+    }
+
+    private GameStateSnapshot decorateStateForPlayer(GameStateSnapshot snapshot, String playerId) {
+        Map<String, SnakeState> snakes = new LinkedHashMap<>();
+        for (Map.Entry<String, SnakeState> entry : snapshot.snakes().entrySet()) {
+            SnakeState s = entry.getValue();
+            snakes.put(entry.getKey(), new SnakeState(
+                s.id(),
+                s.body(),
+                s.direction(),
+                s.color(),
+                s.score(),
+                s.kills(),
+                s.length(),
+                s.isAlive(),
+                s.nickname(),
+                s.speedBoost(),
+                s.shield(),
+                s.magnet(),
+                Objects.equals(entry.getKey(), playerId)
+            ));
+        }
+
+        List<ScoreEntry> scoreBoard = snapshot.scoreBoard().stream()
+            .map(entry -> new ScoreEntry(
+                entry.id(),
+                entry.nickname(),
+                entry.score(),
+                entry.kills(),
+                entry.length(),
+                entry.isAlive(),
+                entry.survivalTime(),
+                Objects.equals(entry.id(), playerId),
+                entry.color()
+            ))
+            .toList();
+
+        return new GameStateSnapshot(
+            snakes,
+            snapshot.foods(),
+            snapshot.items(),
+            snapshot.obstacles(),
+            scoreBoard,
+            snapshot.gameTime(),
+            snapshot.totalTime(),
+            snapshot.gameStatus(),
+            snapshot.mapWidth(),
+            snapshot.mapHeight(),
+            snapshot.gridSize()
+        );
+    }
+
+    private GameResult decorateResultForPlayer(GameResult result, String playerId) {
+        List<ScoreEntry> decorated = result.rankings().stream()
+            .map(entry -> new ScoreEntry(
+                entry.id(),
+                entry.nickname(),
+                entry.score(),
+                entry.kills(),
+                entry.length(),
+                entry.isAlive(),
+                entry.survivalTime(),
+                Objects.equals(entry.id(), playerId),
+                entry.color()
+            ))
+            .toList();
+        return new GameResult(result.gameId(), result.duration(), decorated, result.gameMode());
+    }
+
+    private void broadcastRoomUpdate(Room room) {
+        Map<String, Object> roomInfo = new LinkedHashMap<>();
+        roomInfo.put("id", room.getId());
+        roomInfo.put("name", room.getName());
+        roomInfo.put("hostId", room.getHostId());
+        roomInfo.put("playerCount", room.getPlayers().size());
+        roomInfo.put("maxPlayers", room.getMaxPlayers());
+        roomInfo.put("status", room.getStatus().toWire());
+        roomInfo.put("hasPassword", room.isHasPassword());
+        roomInfo.put("gameDuration", room.getGameDuration());
+        roomInfo.put("gameMode", room.getGameMode());
+
+        List<Map<String, Object>> players = room.getPlayers().values().stream()
+            .map(player -> {
+                Map<String, Object> data = new LinkedHashMap<>();
+                data.put("id", player.getId());
+                data.put("nickname", player.getNickname());
+                data.put("avatar", player.getAvatar());
+                data.put("level", player.getLevel());
+                data.put("isHost", player.isHost());
+                data.put("isReady", player.isReady());
+                return data;
+            })
+            .toList();
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("roomId", room.getId());
+        payload.put("roomInfo", roomInfo);
+        payload.put("players", players);
+        broadcast(room, "room_update", payload);
+    }
+
+    private void broadcastSystem(Room room, String text) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", "system");
+        payload.put("text", text);
+        payload.put("time", System.currentTimeMillis());
+        broadcast(room, "chat_broadcast", payload);
+    }
+
+    private void broadcast(Room room, String type, Object data) {
+        for (Player player : room.getPlayers().values()) {
+            send(player.getSession(), type, data);
+        }
+    }
+
+    private void send(WebSocketSession session, String type, Object data) {
+        if (session == null || !session.isOpen()) {
+            if (session == null) {
+                log.warn("WS send skipped: session is null for type={}", type);
+            }
+            return;
+        }
+        Map<String, Object> wrapper = new LinkedHashMap<>();
+        wrapper.put("type", type);
+        wrapper.put("data", data);
+        try {
+            String json = objectMapper.writeValueAsString(wrapper);
+            session.sendMessage(new TextMessage(json));
+        } catch (JsonProcessingException e) {
+            log.error("WS JSON serialization error for type={}: {}", type, e.getMessage());
+        } catch (Exception e) {
+            log.error("WS send error for type={}: {}", type, e.getMessage());
+        }
+    }
+
+    private void sendError(WebSocketSession session, String message) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("message", message);
+        send(session, "error", payload);
+    }
+
+    private Room createRoom(String roomId, JoinRoomRequest request) {
+        Room room = new Room(roomId);
+        room.setName(fallback(request.roomName(), "Room"));
+        room.setGameMode(fallback(request.gameMode(), "multi"));
+        int maxPlayers = request.maxPlayers() > 0 ? request.maxPlayers() : 6;
+        if (GameMode.from(room.getGameMode()) == GameMode.SINGLE) {
+            maxPlayers = 1;
+        }
+        room.setMaxPlayers(maxPlayers);
+        int duration = request.gameDuration() > 0 ? request.gameDuration() : 300;
+        if (GameMode.from(room.getGameMode()) == GameMode.SINGLE) {
+            duration = 0;
+        }
+        room.setGameDuration(duration);
+        room.setHasPassword(request.hasPassword());
+        room.setPassword(request.password());
+        room.setAllowBots(request.allowBots());
+        room.setStatus(RoomStatus.WAITING);
+        return room;
+    }
+
+    private SessionRef getSessionRef(WebSocketSession session, String roomId) {
+        SessionRef ref = sessionIndex.get(session.getId());
+        if (ref == null && roomId != null) {
+            return new SessionRef(roomId, "player_" + session.getId());
+        }
+        return ref;
+    }
+
+    private String fallback(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private String safeName(String nickname) {
+        String value = nickname == null || nickname.isBlank() ? "Player" : nickname;
+        return value.length() > 20 ? value.substring(0, 20) : value;
+    }
+
+    private void cleanupIfEmpty(Room room) {
+        if (room.getPlayers().isEmpty()) {
+            rooms.remove(room.getId());
+            if (room.getEngine() != null) {
+                room.getEngine().stop();
+            }
+        }
+    }
+
+    private RoomSummary toSummary(Room room) {
+        int playerCount = room.getPlayers().size();
+        String status = computeStatus(room, playerCount);
+        String hostName = null;
+        if (room.getHostId() != null) {
+            Player host = room.getPlayers().get(room.getHostId());
+            if (host != null) {
+                hostName = host.getNickname();
+            }
+        }
+        return new RoomSummary(
+            room.getId(),
+            room.getName(),
+            room.getHostId(),
+            hostName,
+            playerCount,
+            room.getMaxPlayers(),
+            status,
+            room.isHasPassword(),
+            room.getGameDuration(),
+            room.getGameMode()
+        );
+    }
+
+    private String computeStatus(Room room, int playerCount) {
+        String status = switch (room.getStatus()) {
+            case PLAYING -> "playing";
+            case FINISHED -> "finished";
+            case COUNTDOWN -> "waiting";
+            case WAITING -> "waiting";
+        };
+        if (!"playing".equals(status) && !"finished".equals(status) && playerCount >= room.getMaxPlayers()) {
+            return "full";
+        }
+        return status;
+    }
+
+    private String normalize(String value) {
+        return value == null ? null : value.trim().toLowerCase();
+    }
+
+    private record SessionRef(String roomId, String playerId) {
+    }
+
+    public record JoinRoomRequest(
+        String roomId,
+        String roomName,
+        String playerId,
+        String nickname,
+        String avatar,
+        int level,
+        String gameMode,
+        int maxPlayers,
+        int gameDuration,
+        boolean hasPassword,
+        String password,
+        boolean create,
+        boolean allowBots
+    ) {
+    }
+
+    public record LeaveRoomRequest(String roomId, String playerId) {
+    }
+
+    public record ReadyRequest(String roomId, String playerId, String targetPlayerId, Boolean ready) {
+    }
+
+    public record StartGameRequest(String roomId, String playerId) {
+    }
+
+    public record DirectionRequest(String roomId, String playerId, String direction) {
+    }
+
+    public record ItemRequest(String roomId, String playerId, String itemType) {
+    }
+
+    public record SpeedBoostRequest(String roomId, String playerId) {
+    }
+
+    public record ChatRequest(String roomId, String playerId, String text) {
+    }
+
+    public record KickRequest(String roomId, String playerId, String targetPlayerId) {
+    }
+
+    public record RoomSummary(
+        String id,
+        String name,
+        String hostId,
+        String hostName,
+        int playerCount,
+        int maxPlayers,
+        String status,
+        boolean hasPassword,
+        int gameDuration,
+        String gameMode
+    ) {
+    }
+
+    public record RoomListResponse(List<RoomSummary> list, int total, int page, int size) {
+    }
+
+    public record RoomQuery(int page, int size, String status, String keyword, String mode) {
+    }
+}

@@ -194,11 +194,12 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { UserFilled, ArrowDown, Search, Clock, Trophy, QuestionFilled, RefreshRight, Lock } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
+import { getRoomListApi, getOnlineCountApi } from '@/api/room'
 
 const router = useRouter()
 const userStore = useUserStore()
 
-const onlineCount = ref(128)
+const onlineCount = ref(0)
 const isLoading = ref(false)
 const searchKeyword = ref('')
 const statusFilter = ref('all')
@@ -229,31 +230,10 @@ const createRules = {
 }
 const playerMarks = { 2: '2人', 4: '4人', 6: '6人', 8: '8人' }
 
-// ---- Mock 房间 ----
-const mockRooms = ref([])
-function generateMockRooms() {
-  const names = ['新手训练营', '高手对决', '欢乐派对', '竞技场', '贪吃蛇乐园', '蛇王争霸', '周末休闲局', '经典模式', '蛇蛇大作战', '极限挑战']
-  const rooms = names.map((name, i) => {
-    const isSingle = i >= 7 // 最后两个是单人模式
-    const isFull = i === 7  // 经典模式(单人)标记为已满
-    return {
-      id: 'room_' + (i + 1),
-      name,
-      hostId: 'player_' + (i + 1),
-      hostName: '玩家' + (i + 1),
-      playerCount: isSingle ? (isFull ? 1 : 0) : [1, 3, 5, 7, 3, 2, 4, 1, 3, 5][i],
-      maxPlayers: isSingle ? 1 : [4, 6, 6, 8, 6, 4, 6, 1, 6, 8][i],
-      status: isFull ? 'full' : (isSingle ? 'waiting' : ['waiting', 'playing', 'waiting', 'waiting', 'playing', 'waiting', 'waiting', 'waiting', 'waiting', 'waiting'][i]),
-      hasPassword: [false, false, true, false, false, false, false, false, false, true][i],
-      gameDuration: isSingle ? Infinity : [300, 300, 180, 300, 480, 300, 300, 300, 300, 180][i],
-      gameMode: isSingle ? 'single' : 'multi'
-    }
-  })
-  return rooms
-}
+const roomList = ref([])
 
 const filteredRooms = computed(() => {
-  let rooms = [...mockRooms.value]
+  let rooms = [...roomList.value]
   if (searchKeyword.value) rooms = rooms.filter(r => r.name.includes(searchKeyword.value))
   if (statusFilter.value === 'waiting') rooms = rooms.filter(r => r.status === 'waiting' && r.playerCount < r.maxPlayers)
   if (statusFilter.value === 'playing') rooms = rooms.filter(r => r.status === 'playing')
@@ -265,7 +245,12 @@ const filteredRooms = computed(() => {
 })
 
 const recentRooms = computed(() => {
-  try { return JSON.parse(localStorage.getItem('snake_recent_rooms') || '[]') } catch { return [] }
+  try {
+    const recents = JSON.parse(localStorage.getItem('snake_recent_rooms') || '[]')
+    // 只保留在服务器房间列表中仍然存在的房间
+    const existingIds = new Set(roomList.value.map(r => r.id))
+    return recents.filter(r => existingIds.has(r.id))
+  } catch { return [] }
 })
 
 function getStatusType(s) { return s === 'waiting' ? 'success' : s === 'playing' ? 'warning' : 'danger' }
@@ -274,11 +259,32 @@ function getProgressColor(r) {
   const p = r.playerCount / r.maxPlayers
   return p >= 1 ? '#ef5350' : p >= 0.7 ? '#ffa726' : '#66bb6a'
 }
-function formatDuration(s) { return Math.floor(s / 60) + '分钟' }
+function formatDuration(s) {
+  if (!Number.isFinite(s) || s <= 0) return '无限'
+  return Math.floor(s / 60) + '分钟'
+}
 
-function refreshRoomList() {
+async function refreshRoomList() {
   isLoading.value = true
-  setTimeout(() => { mockRooms.value = generateMockRooms(); isLoading.value = false }, 500)
+  try {
+    const data = await getRoomListApi({ page: 1, size: 100 })
+    roomList.value = data.list || []
+  } catch (e) {
+    ElMessage.error('获取房间列表失败')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+async function fetchOnlineCount() {
+  try {
+    const data = await getOnlineCountApi()
+    if (data && typeof data.count === 'number') {
+      onlineCount.value = data.count
+    }
+  } catch (e) {
+    // 静默失败，保持上次的值
+  }
 }
 
 function handleQuickMatch() { ElMessage.info('正在匹配对手...（功能开发中）') }
@@ -295,8 +301,8 @@ function handleJoinRoom(room) {
 
 function confirmJoinWithPassword() {
   if (!joinPassword.value) { ElMessage.warning('请输入房间密码'); return }
-  if (joinPassword.value !== '123456') { ElMessage.error('密码错误'); return }
   showPasswordDialog.value = false
+  pendingJoinRoom = { ...pendingJoinRoom, password: joinPassword.value }
   doJoinRoom(pendingJoinRoom)
 }
 
@@ -340,7 +346,9 @@ function handleLogout() {
 
 onMounted(() => {
   refreshRoomList()
-  setInterval(() => { onlineCount.value = Math.floor(Math.random() * 50) + 100 }, 30000)
+  fetchOnlineCount()
+  setInterval(() => refreshRoomList(), 5000)
+  setInterval(() => fetchOnlineCount(), 15000)
 })
 </script>
 
