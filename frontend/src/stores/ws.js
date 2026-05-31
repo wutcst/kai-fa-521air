@@ -1,7 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-const DEFAULT_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8080/ws/game'
+const DEFAULT_URL = import.meta.env.VITE_WS_URL
+  || (typeof window !== 'undefined'
+    ? `ws://${window.location.hostname}:8080/ws/game`
+    : 'ws://localhost:8080/ws/game')
 
 export const useWsStore = defineStore('ws', () => {
   const ws = ref(null)

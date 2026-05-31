@@ -8,6 +8,12 @@
     <!-- 顶部装饰条 -->
     <div class="top-decor"></div>
 
+    <!-- 连接错误提示 -->
+    <div v-if="connectionError" class="connection-banner">
+      <span>⚠️ {{ connectionError }}</span>
+      <el-button size="small" @click="retryConnect" :loading="isRetrying">重新连接</el-button>
+    </div>
+
     <!-- 顶部信息栏 -->
     <header class="room-header">
       <el-button @click="handleLeaveRoom" text :icon="ArrowLeft" class="back-btn">返回大厅</el-button>
@@ -209,6 +215,8 @@ const isHost = ref(false)
 const myReadyState = ref(false)
 const countdown = ref(0)
 const navigatingToGame = ref(false)
+const connectionError = ref('')
+const isRetrying = ref(false)
 
 // ---- 房间信息 ----
 const roomInfo = ref({
@@ -296,21 +304,39 @@ function onChatScroll() {
 
 // ---- 操作 ----
 function toggleReady() {
-  wsStore.send('ready', {
+  if (!wsStore.isConnected) {
+    ElMessage.error('未连接到服务器，请检查后端是否运行')
+    return
+  }
+  // 乐观更新：先切 UI，失败再回滚
+  const previous = myReadyState.value
+  myReadyState.value = !myReadyState.value
+  const sent = wsStore.send('ready', {
     roomId: roomInfo.value.id,
     playerId: myId.value,
-    ready: !myReadyState.value
+    ready: myReadyState.value
   })
+  if (!sent) {
+    myReadyState.value = previous
+    ElMessage.error('发送失败，请检查网络连接')
+  }
 }
 
 /** 房主切换其他玩家的准备状态 */
 function togglePlayerReady(player) {
-  wsStore.send('ready', {
+  if (!wsStore.isConnected) {
+    ElMessage.error('未连接到服务器，请检查后端是否运行')
+    return
+  }
+  const sent = wsStore.send('ready', {
     roomId: roomInfo.value.id,
     playerId: myId.value,
     targetPlayerId: player.id,
     ready: !player.isReady
   })
+  if (!sent) {
+    ElMessage.error('发送失败，请检查网络连接')
+  }
 }
 
 function handleKickPlayer(player) {
@@ -364,6 +390,12 @@ function copyRoomId() {
 }
 function formatDuration(s) { const m = Math.floor(s / 60); return m + '分钟' }
 
+async function retryConnect() {
+  isRetrying.value = true
+  await connectAndJoin()
+  isRetrying.value = false
+}
+
 function registerHandlers() {
   offHandlers.push(wsStore.on('room_update', handleRoomUpdate))
   offHandlers.push(wsStore.on('countdown', handleCountdown))
@@ -374,10 +406,12 @@ function registerHandlers() {
 
 async function connectAndJoin() {
   registerHandlers()
+  connectionError.value = ''
   try {
     await wsStore.connect()
+    connectionError.value = ''
   } catch {
-    ElMessage.error('无法连接服务器')
+    connectionError.value = '无法连接游戏服务器，请确认后端已启动（端口 8080）'
     return
   }
 
@@ -507,6 +541,22 @@ onUnmounted(() => {
   height: 3px;
   background: linear-gradient(90deg, #a5d6a7, #66bb6a, #43a047, #66bb6a, #a5d6a7);
   flex-shrink: 0;
+}
+
+/* 连接错误横幅 */
+.connection-banner {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  padding: 10px 20px;
+  background: #fff3e0; color: #e65100;
+  font-size: 14px; font-weight: 600;
+  border-bottom: 2px solid #ff9800;
+  flex-shrink: 0;
+  animation: shake 0.5s ease-in-out;
+}
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
 }
 
 .room-header {
