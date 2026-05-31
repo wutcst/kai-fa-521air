@@ -5,7 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
  * 玩家成绩数据访问接口
@@ -15,7 +14,9 @@ public interface GamePlayerResultRepository extends JpaRepository<GamePlayerResu
 
     List<GamePlayerResult> findByGameIdOrderByScoreDesc(Long gameId);
 
-    List<GamePlayerResult> findByUserIdOrderByCreatedAtDesc(Long userId);
+    List<GamePlayerResult> findByUserIdOrderByCreatedAtDesc(String userId);
 
-    Optional<GamePlayerResult> findByGameIdAndUserId(Long gameId, Long userId);
+    List<GamePlayerResult> findByUserId(String userId);
+
+    List<GamePlayerResult> findByGameIdAndUserId(Long gameId, String userId);
 }

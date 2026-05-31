@@ -262,6 +262,28 @@ function addToast(text, type = 'info') {
 const showStartCountdown = ref(false)
 const startCount = ref(3)
 
+/** 集中触发游戏结束逻辑，防重复执行 */
+function triggerGameOver(data) {
+  if (isGameOver.value) {
+    console.log('[GameView] triggerGameOver skipped: already game over')
+    return
+  }
+  console.log('[GameView] triggerGameOver called, data:', JSON.stringify(data))
+  isGameOver.value = true
+  isRunning.value = false
+  gameStore.resetGame()
+
+  const rankings = data?.rankings || []
+  const resultData = {
+    gameId: data?.gameId || ('game_' + Date.now()),
+    rankings: rankings,
+    myRank: rankings.findIndex(r => r.isMe) + 1,
+    gameMode: data?.gameMode || gameMode.value
+  }
+  sessionStorage.setItem('game_result', JSON.stringify(resultData))
+  console.log('[GameView] game_result saved to sessionStorage:', resultData)
+}
+
 function handleGameEvent(type, data) {
   switch (type) {
     case 'game_start':
@@ -289,16 +311,7 @@ function handleGameEvent(type, data) {
       if (gameState.value?.snakes?.[data.snakeId]?.isMe) addToast('🛡 护盾抵挡了一次攻击！', 'shield')
       break
     case 'game_over':
-      isGameOver.value = true
-      isRunning.value = false
-      gameStore.resetGame()
-      gameStore.updateGameState(data)
-      sessionStorage.setItem('game_result', JSON.stringify({
-        gameId: data.gameId,
-        rankings: data.rankings,
-        myRank: data.rankings?.findIndex(r => r.isMe) + 1,
-        gameMode: data.gameMode || gameMode.value
-      }))
+      triggerGameOver(data)
       break
   }
 }
@@ -440,6 +453,14 @@ function handleGameState(state) {
   if (state.gameStatus === 'playing' || state.gameStatus === 'finished') {
     if (!isRunning.value) console.log('[GameView] Starting game loop')
     isRunning.value = true
+  }
+  // 当 game_status 为 finished 时，作为 fallback 触发游戏结束覆盖层
+  // （防止 game_over WebSocket 消息因时序/连接问题未到达前端）
+  if (state.gameStatus === 'finished') {
+    triggerGameOver({
+      rankings: state.scoreBoard || [],
+      gameMode: gameMode.value
+    })
   }
 }
 

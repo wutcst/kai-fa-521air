@@ -19,8 +19,8 @@ public class GamePlayerResult {
     @Column(name = "game_id", nullable = false)
     private Long gameId;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @Column(name = "user_id", nullable = false, length = 64)
+    private String userId;
 
     @Column(nullable = false)
     private int score = 0;
@@ -58,8 +58,8 @@ public class GamePlayerResult {
     public Long getGameId() { return gameId; }
     public void setGameId(Long gameId) { this.gameId = gameId; }
 
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
 
     public int getScore() { return score; }
     public void setScore(int score) { this.score = score; }

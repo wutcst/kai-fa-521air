@@ -1,6 +1,7 @@
 package com.snake.room;
 
 import com.snake.game.GameEngine;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
@@ -19,6 +20,7 @@ public class Room {
     private RoomStatus status = RoomStatus.WAITING;
     private final Map<String, Player> players = new ConcurrentHashMap<>();
     private GameEngine engine;
+    private LocalDateTime startedAt;
     private ScheduledFuture<?> countdownTask;
     private int countdownSeconds;
 
@@ -112,6 +114,14 @@ public class Room {
 
     public GameEngine getEngine() {
         return engine;
+    }
+
+    public LocalDateTime getStartedAt() {
+        return startedAt;
+    }
+
+    public void setStartedAt(LocalDateTime startedAt) {
+        this.startedAt = startedAt;
     }
 
     public void setEngine(GameEngine engine) {

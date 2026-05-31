@@ -10,6 +10,8 @@ import com.snake.game.GameEngine.GameStateSnapshot;
 import com.snake.game.GameEngine.PlayerSeed;
 import com.snake.game.GameEngine.ScoreEntry;
 import com.snake.game.GameEngine.SnakeState;
+import com.snake.service.GameService;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -25,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
+import java.util.WeakHashMap;
 import jakarta.annotation.PreDestroy;
 
 @Service
@@ -36,12 +39,16 @@ public class RoomManager {
     );
 
     private final ObjectMapper objectMapper;
+    private final GameService gameService;
     private final Map<String, Room> rooms = new ConcurrentHashMap<>();
     private final Map<String, SessionRef> sessionIndex = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);
+    /** 每个 WebSocket Session 的锁对象，防止并发写导致 TEXT_PARTIAL_WRITING */
+    private final Map<WebSocketSession, Object> sessionLocks = new WeakHashMap<>();
 
-    public RoomManager(ObjectMapper objectMapper) {
+    public RoomManager(ObjectMapper objectMapper, GameService gameService) {
         this.objectMapper = objectMapper;
+        this.gameService = gameService;
     }
 
     public void joinRoom(WebSocketSession session, JoinRoomRequest request) {
@@ -284,6 +291,10 @@ public class RoomManager {
     }
 
     public void handleDisconnect(WebSocketSession session) {
+        // 清理 session 级别的写锁
+        synchronized (sessionLocks) {
+            sessionLocks.remove(session);
+        }
         SessionRef ref = sessionIndex.remove(session.getId());
         if (ref == null) {
             return;
@@ -438,6 +449,7 @@ public class RoomManager {
         log.info("Starting game engine for room {} with {} players (mode={})", room.getId(), seeds.size(), room.getGameMode());
         GameEngine engine = new GameEngine(GameMode.from(room.getGameMode()), room.getGameDuration(), seeds);
         room.setEngine(engine);
+        room.setStartedAt(LocalDateTime.now());
 
         engine.start(
             scheduler,
@@ -451,8 +463,18 @@ public class RoomManager {
     }
 
     private void handleGameOver(Room room, GameResult result) {
+        log.info("handleGameOver: room={}, mode={}, rankings={}", room.getId(), result.gameMode(), result.rankings().size());
         room.setStatus(RoomStatus.FINISHED);
         broadcastRoomUpdate(room);
+
+        // 持久化游戏结果到数据库
+        try {
+            gameService.saveGameResult(room, result);
+            log.info("Game result saved to DB for room {}", room.getId());
+        } catch (Exception e) {
+            log.error("Failed to persist game result for room {}: {}", room.getId(), e.getMessage(), e);
+        }
+
         for (Player player : room.getPlayers().values()) {
             GameResult decorated = decorateResultForPlayer(result, player.getId());
             send(player.getSession(), "game_over", decorated);
@@ -583,23 +605,33 @@ public class RoomManager {
         }
     }
 
-    private void send(WebSocketSession session, String type, Object data) {
+    private boolean send(WebSocketSession session, String type, Object data) {
         if (session == null || !session.isOpen()) {
             if (session == null) {
                 log.warn("WS send skipped: session is null for type={}", type);
             }
-            return;
+            return false;
         }
         Map<String, Object> wrapper = new LinkedHashMap<>();
         wrapper.put("type", type);
         wrapper.put("data", data);
-        try {
-            String json = objectMapper.writeValueAsString(wrapper);
-            session.sendMessage(new TextMessage(json));
-        } catch (JsonProcessingException e) {
-            log.error("WS JSON serialization error for type={}: {}", type, e.getMessage());
-        } catch (Exception e) {
-            log.error("WS send error for type={}: {}", type, e.getMessage());
+        // 同步 session 级别的锁，防止多个线程同时往同一个 session 写消息
+        Object lock;
+        synchronized (sessionLocks) {
+            lock = sessionLocks.computeIfAbsent(session, k -> new Object());
+        }
+        synchronized (lock) {
+            try {
+                String json = objectMapper.writeValueAsString(wrapper);
+                session.sendMessage(new TextMessage(json));
+                return true;
+            } catch (JsonProcessingException e) {
+                log.error("WS JSON serialization error for type={}: {}", type, e.getMessage());
+                return false;
+            } catch (Exception e) {
+                log.error("WS send error for type={}: {}", type, e.getMessage());
+                return false;
+            }
         }
     }
 

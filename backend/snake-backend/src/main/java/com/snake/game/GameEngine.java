@@ -23,6 +23,8 @@ public class GameEngine {
         "#ffd740", "#69f0ae", "#ff5252", "#40c4ff"
     };
 
+    private static final org.slf4j.Logger engineLog = org.slf4j.LoggerFactory.getLogger(GameEngine.class);
+
     public enum GameMode {
         SINGLE,
         MULTI;
@@ -812,6 +814,7 @@ public class GameEngine {
         if ("finished".equals(status)) {
             return;
         }
+        engineLog.info("endGame: mode={}, gameTime={}", mode, gameTime);
         status = "finished";
         stopTimers();
         broadcastState();
@@ -844,15 +847,15 @@ public class GameEngine {
 
     private void stopTimers() {
         if (tickTask != null) {
-            tickTask.cancel(true);
+            tickTask.cancel(false);
             tickTask = null;
         }
         if (itemTask != null) {
-            itemTask.cancel(true);
+            itemTask.cancel(false);
             itemTask = null;
         }
         if (foodTask != null) {
-            foodTask.cancel(true);
+            foodTask.cancel(false);
             foodTask = null;
         }
     }
