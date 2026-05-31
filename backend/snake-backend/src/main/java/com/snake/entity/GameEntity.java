@@ -14,8 +14,8 @@ public class GameEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "room_id")
-    private Long roomId;
+    @Column(name = "room_id", length = 64)
+    private String roomId;
 
     @Column(name = "game_mode", nullable = false, length = 10)
     private String gameMode;
@@ -47,8 +47,8 @@ public class GameEntity {
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
-    public Long getRoomId() { return roomId; }
-    public void setRoomId(Long roomId) { this.roomId = roomId; }
+    public String getRoomId() { return roomId; }
+    public void setRoomId(String roomId) { this.roomId = roomId; }
 
     public String getGameMode() { return gameMode; }
     public void setGameMode(String gameMode) { this.gameMode = gameMode; }

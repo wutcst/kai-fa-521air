@@ -194,7 +194,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { UserFilled, ArrowDown, Search, Clock, Trophy, QuestionFilled, RefreshRight, Lock } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
-import { getRoomListApi, getOnlineCountApi } from '@/api/room'
+import { getRoomListApi, getOnlineCountApi, createRoomApi, joinRoomApi } from '@/api/room'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -306,13 +306,17 @@ function confirmJoinWithPassword() {
   doJoinRoom(pendingJoinRoom)
 }
 
-function doJoinRoom(room) {
-  const recents = recentRooms.value.filter(r => r.id !== room.id)
-  recents.unshift(room)
-  localStorage.setItem('snake_recent_rooms', JSON.stringify(recents.slice(0, 5)))
-  // 把房间完整数据传给 RoomView
-  sessionStorage.setItem('joined_room_data', JSON.stringify(room))
-  router.push(`/room/${room.id}`)
+async function doJoinRoom(room) {
+  try {
+    await joinRoomApi(room.id, room.password || '')
+    const recents = recentRooms.value.filter(function(r) { return r.id !== room.id })
+    recents.unshift(room)
+    localStorage.setItem('snake_recent_rooms', JSON.stringify(recents.slice(0, 5)))
+    sessionStorage.setItem('joined_room_data', JSON.stringify(room))
+    router.push('/room/' + room.id)
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '加入房间失败')
+  }
 }
 
 async function handleCreateRoom() {
@@ -320,17 +324,27 @@ async function handleCreateRoom() {
   const valid = await createFormRef.value.validate().catch(() => false)
   if (!valid) return
   isCreating.value = true
-  await new Promise(resolve => setTimeout(resolve, 600))
-  const roomId = 'room_' + Date.now()
+  var result = await createRoomApi({
+    name: createForm.name,
+    gameMode: createForm.gameMode,
+    maxPlayers: createForm.gameMode === 'single' ? 1 : createForm.maxPlayers,
+    gameDuration: createForm.gameDuration,
+    hasPassword: createForm.hasPassword,
+    password: createForm.password || ''
+  })
   sessionStorage.setItem('new_room_config', JSON.stringify({
-    ...createForm,
-    roomId,
-    maxPlayers: createForm.gameMode === 'single' ? 1 : createForm.maxPlayers
+    roomId: result.roomId,
+    name: result.name,
+    gameMode: result.gameMode,
+    maxPlayers: result.maxPlayers,
+    gameDuration: result.gameDuration,
+    hasPassword: result.hasPassword,
+    password: result.password
   }))
   isCreating.value = false
   showCreateDialog.value = false
-  ElMessage.success('房间创建成功！🌿')
-  router.push(`/room/${roomId}`)
+  ElMessage.success('房间创建成功！')
+  router.push('/room/' + result.roomId)
 }
 
 function handleLink(type) {

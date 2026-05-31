@@ -10,7 +10,7 @@ import java.util.List;
  * 房间数据访问接口
  */
 @Repository
-public interface RoomRepository extends JpaRepository<RoomEntity, Long> {
+public interface RoomRepository extends JpaRepository<RoomEntity, String> {
 
     List<RoomEntity> findByStatusOrderByCreatedAtDesc(String status);
 

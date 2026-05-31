@@ -16,11 +16,11 @@ public class RoomPlayer {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "room_id", nullable = false)
-    private Long roomId;
+    @Column(name = "room_id", nullable = false, length = 64)
+    private String roomId;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @Column(name = "user_id", nullable = false, length = 64)
+    private String userId;
 
     @Column(name = "is_host", nullable = false)
     private boolean isHost = false;
@@ -36,21 +36,15 @@ public class RoomPlayer {
         joinedAt = LocalDateTime.now();
     }
 
-    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
-
-    public Long getRoomId() { return roomId; }
-    public void setRoomId(Long roomId) { this.roomId = roomId; }
-
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
-
+    public String getRoomId() { return roomId; }
+    public void setRoomId(String roomId) { this.roomId = roomId; }
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
     public boolean isHost() { return isHost; }
     public void setHost(boolean isHost) { this.isHost = isHost; }
-
     public boolean isReady() { return isReady; }
     public void setReady(boolean isReady) { this.isReady = isReady; }
-
     public LocalDateTime getJoinedAt() { return joinedAt; }
 }

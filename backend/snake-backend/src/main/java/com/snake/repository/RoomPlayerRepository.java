@@ -13,13 +13,13 @@ import java.util.Optional;
 @Repository
 public interface RoomPlayerRepository extends JpaRepository<RoomPlayer, Long> {
 
-    List<RoomPlayer> findByRoomId(Long roomId);
+    List<RoomPlayer> findByRoomId(String roomId);
 
-    Optional<RoomPlayer> findByRoomIdAndUserId(Long roomId, Long userId);
+    Optional<RoomPlayer> findByRoomIdAndUserId(String roomId, String userId);
 
-    long countByRoomId(Long roomId);
+    long countByRoomId(String roomId);
 
-    void deleteByRoomIdAndUserId(Long roomId, Long userId);
+    void deleteByRoomIdAndUserId(String roomId, String userId);
 
-    void deleteByRoomId(Long roomId);
+    void deleteByRoomId(String roomId);
 }

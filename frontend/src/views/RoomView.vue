@@ -507,7 +507,7 @@ function loadRoomSeed() {
 }
 
 function getPlayerId() {
-  if (userStore.userInfo.id) return userStore.userInfo.id
+  if (userStore.userInfo.id) return String(userStore.userInfo.id)
   const cached = localStorage.getItem('snake_player_id')
   if (cached) return cached
   const id = 'player_' + Date.now() + '_' + Math.floor(Math.random() * 10000)

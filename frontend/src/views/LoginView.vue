@@ -1,6 +1,6 @@
 <!--
   LoginView.vue - 登录/注册页面（v2 - 小清新绿色主题）
-  功能：账号密码登录、注册切换、Mock数据模拟
+  功能：账号密码登录、注册切换
 -->
 <template>
   <div class="login-container">
@@ -68,7 +68,7 @@
         </a>
       </div>
 
-      <el-alert title="当前为Mock模式，输入任意用户名密码即可登录（如：admin / 123456）" type="success" :closable="false" show-icon style="margin-top:12px" />
+      <el-alert title="测试账号：admin / 123456" type="success" :closable="false" show-icon style="margin-top:12px" />
     </div>
 
     <div class="version-info">v2.0 | 小清新绿色主题</div>
@@ -133,15 +133,17 @@ async function handleSubmit() {
   isLoading.value = true
   try {
     if (isLoginMode.value) {
-      const { user, token } = await loginApi(formData.username, formData.password)
-      userStore.login(user, token)
-      ElMessage.success(`欢迎回来，${user.nickname || user.username}！🌿`)
+      const data = await loginApi(formData.username, formData.password)
+      const user = { ...data.user, score: data.user.totalScore || 0 }
+      userStore.login(user, data.token)
+      ElMessage.success('欢迎回来，' + (user.nickname || user.username) + '！')
       const redirect = route.query.redirect || '/lobby'
       router.push(redirect)
     } else {
-      const { user, token } = await registerApi(formData.username, formData.password, formData.nickname)
-      userStore.login(user, token)
-      ElMessage.success(`注册成功！欢迎你，${user.nickname || user.username}！🌿`)
+      const data = await registerApi(formData.username, formData.password, formData.nickname)
+      const user = { ...data.user, score: data.user.totalScore || 0 }
+      userStore.login(user, data.token)
+      ElMessage.success('注册成功！欢迎你，' + (user.nickname || user.username) + '！')
       router.push('/lobby')
     }
   } catch (error) {
@@ -151,11 +153,11 @@ async function handleSubmit() {
 
 function getLeafStyle(i) {
   return {
-    left: `${5 + (i % 4) * 25 + Math.random() * 10}%`,
-    top: `${5 + Math.floor(i / 4) * 30 + Math.random() * 15}%`,
-    animationDelay: `${i * 0.4}s`,
-    animationDuration: `${3 + Math.random() * 3}s`,
-    fontSize: `${20 + Math.random() * 16}px`
+    left: (5 + (i % 4) * 25 + Math.random() * 10) + '%',
+    top: (5 + Math.floor(i / 4) * 30 + Math.random() * 15) + '%',
+    animationDelay: (i * 0.4) + 's',
+    animationDuration: (3 + Math.random() * 3) + 's',
+    fontSize: (20 + Math.random() * 16) + 'px'
   }
 }
 </script>

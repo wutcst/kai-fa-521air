@@ -362,6 +362,31 @@ public class RoomManager {
         return new RoomListResponse(pageList, total, page, size);
     }
 
+    /**
+     * 通过 REST API 创建房间时，向 RoomManager 注册房间，
+     * 使其出现在实时房间列表中，并允许后续 WebSocket 连接加入。
+     */
+    public void registerRoom(String roomId, String name, String hostId, String nickname,
+                              String gameMode, int maxPlayers, int gameDuration,
+                              boolean hasPassword, String password, boolean allowBots) {
+        Room room = new Room(roomId);
+        room.setName(name);
+        room.setHostId(hostId);
+        room.setGameMode(gameMode);
+        room.setMaxPlayers(maxPlayers);
+        room.setGameDuration(gameDuration);
+        room.setHasPassword(hasPassword);
+        room.setPassword(password);
+        room.setAllowBots(allowBots);
+        room.setStatus(RoomStatus.WAITING);
+
+        Player host = new Player(hostId, nickname, "", 1, true);
+        room.getPlayers().put(hostId, host);
+
+        rooms.put(roomId, room);
+        log.info("Room registered in RoomManager via REST: {} by {}", roomId, nickname);
+    }
+
     @PreDestroy
     public void shutdown() {
         scheduler.shutdownNow();
