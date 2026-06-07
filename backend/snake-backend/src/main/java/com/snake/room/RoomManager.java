@@ -250,14 +250,17 @@ public class RoomManager {
                 return;
             }
             if (GameMode.from(room.getGameMode()) == GameMode.MULTI) {
-                if (room.getPlayers().size() < 2) {
-                    sendError(session, "need at least 2 players");
-                    return;
-                }
-                boolean allReady = room.getPlayers().values().stream().allMatch(Player::isReady);
-                if (!allReady) {
-                    sendError(session, "not all players ready");
-                    return;
+                // AI陪练模式：允许只有房主一人时开始（机器人自动补充）
+                if (!room.isAllowBots()) {
+                    if (room.getPlayers().size() < 2) {
+                        sendError(session, "need at least 2 players");
+                        return;
+                    }
+                    boolean allReady = room.getPlayers().values().stream().allMatch(Player::isReady);
+                    if (!allReady) {
+                        sendError(session, "not all players ready");
+                        return;
+                    }
                 }
             }
             startCountdown(room);
@@ -635,6 +638,7 @@ public class RoomManager {
         roomInfo.put("hasPassword", room.isHasPassword());
         roomInfo.put("gameDuration", room.getGameDuration());
         roomInfo.put("gameMode", room.getGameMode());
+        roomInfo.put("allowBots", room.isAllowBots());
 
         List<Map<String, Object>> players = room.getPlayers().values().stream()
             .map(player -> {
@@ -828,7 +832,8 @@ public class RoomManager {
             status,
             room.isHasPassword(),
             room.getGameDuration(),
-            room.getGameMode()
+            room.getGameMode(),
+            room.isAllowBots()
         );
     }
 
@@ -903,7 +908,8 @@ public class RoomManager {
         String status,
         boolean hasPassword,
         int gameDuration,
-        String gameMode
+        String gameMode,
+        boolean allowBots
     ) {
     }
 

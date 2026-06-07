@@ -170,6 +170,10 @@
           <el-switch v-model="createForm.hasPassword" />
           <el-input v-if="createForm.hasPassword" v-model="createForm.password" placeholder="设置密码" style="width:160px;margin-left:10px" maxlength="10" />
         </el-form-item>
+        <el-form-item label="AI陪练" v-if="createForm.gameMode === 'multi'">
+          <el-switch v-model="createForm.allowBots" />
+          <span class="bot-hint">开启后自动补充AI机器人至满员</span>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="showCreateDialog = false">取消</el-button>
@@ -249,7 +253,8 @@ const createForm = reactive({
   maxPlayers: 6,
   gameDuration: 300,
   hasPassword: false,
-  password: ''
+  password: '',
+  allowBots: false  // AI机器人陪练
 })
 
 const createRules = {
@@ -435,7 +440,8 @@ async function handleCreateRoom() {
     maxPlayers: createForm.gameMode === 'single' ? 1 : createForm.maxPlayers,
     gameDuration: createForm.gameDuration,
     hasPassword: createForm.hasPassword,
-    password: createForm.password || ''
+    password: createForm.password || '',
+    allowBots: createForm.allowBots
   })
   sessionStorage.setItem('new_room_config', JSON.stringify({
     roomId: result.roomId,
@@ -444,7 +450,8 @@ async function handleCreateRoom() {
     maxPlayers: result.maxPlayers,
     gameDuration: result.gameDuration,
     hasPassword: result.hasPassword,
-    password: result.password
+    password: result.password,
+    allowBots: result.allowBots
   }))
   isCreating.value = false
   showCreateDialog.value = false
@@ -457,8 +464,8 @@ function handleLink(type) {
     router.push('/history')
   } else if (type === 'rank') {
     router.push('/ranking')
-  } else {
-    ElMessage.info('新手引导开发中...')
+  } else if (type === 'guide') {
+    router.push('/guide')
   }
 }
 
@@ -588,6 +595,9 @@ onUnmounted(() => {
 
 /* 模式描述 */
 .mode-desc { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.3; }
+
+/* AI陪练提示 */
+.bot-hint { font-size: 12px; color: var(--text-secondary); margin-left: 10px; }
 
 /* Element Plus 浅色覆盖 */
 :deep(.el-input__wrapper), :deep(.el-select__wrapper) {

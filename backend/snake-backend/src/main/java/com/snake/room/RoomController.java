@@ -109,7 +109,8 @@ public class RoomController {
                 merged.add(new RoomManager.RoomSummary(
                         r.getId(), r.getName(), r.getHostId(), hostName,
                         (int) playerCount, r.getMaxPlayers(), r.getStatus(),
-                        r.isHasPassword(), r.getGameDuration(), r.getGameMode()
+                        r.isHasPassword(), r.getGameDuration(), r.getGameMode(),
+                        r.isAllowBots()
                 ));
             }
         }

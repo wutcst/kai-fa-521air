@@ -549,41 +549,277 @@ public class GameEngine {
         snake.body.remove(snake.body.size() - 1);
     }
 
+    // ================================================================
+    //  AI 机器人 —— 增强版智能决策
+    // ================================================================
+
+    /** 每 N 个 tick 重新评估一次方向（tick 约 100ms，即约 0.2s 决策一次） */
+    private static final int AI_DECISION_INTERVAL = 2;
+    /** 安全前瞻步数 */
+    private static final int AI_LOOKAHEAD = 8;
+    /** BFS 搜索深度上限 */
+    private static final int AI_BFS_MAX_DEPTH = 30;
+
     private void updateAIDirection(Snake snake) {
-        if (ThreadLocalRandom.current().nextDouble() >= 0.15) {
+        // 降频决策：不需要每帧都算
+        if (tickCounter() % AI_DECISION_INTERVAL != 0) {
             return;
         }
 
-        List<Direction> valid = new ArrayList<>();
+        GridPoint head = snake.body.get(0);
+
+        // 1. 收集所有候选方向（排除反向）
+        List<Direction> candidates = new ArrayList<>();
         for (Direction dir : Direction.values()) {
             if (dir != snake.direction.opposite()) {
-                valid.add(dir);
+                candidates.add(dir);
+            }
+        }
+        if (candidates.isEmpty()) {
+            return;
+        }
+
+        // 2. 对每个方向做安全评估 + 可达格数（flood fill）
+        int[] scores = new int[candidates.size()];
+        int maxScore = Integer.MIN_VALUE;
+        int bestIdx = 0;
+
+        for (int i = 0; i < candidates.size(); i++) {
+            Direction dir = candidates.get(i);
+            GridPoint next = wrap(head.x() + dir.dx(), head.y() + dir.dy());
+
+            // 2a. 立即危险检测（撞障碍物 / 撞蛇身）
+            if (isCellDeadly(next, snake)) {
+                scores[i] = -10000;
+                continue;
+            }
+
+            // 2b. 前瞻检测：模拟向前走几步看是否安全
+            int lookaheadSafety = evaluateLookahead(next, dir, snake);
+            if (lookaheadSafety < 0) {
+                scores[i] = -5000 + lookaheadSafety; // 不安全但未立即死亡
+                continue;
+            }
+
+            // 2c. BFS 计算该方向可达区域大小
+            int reachable = floodFillCount(next, snake);
+            scores[i] = reachable;
+
+            // 2d. 食物吸引加分
+            scores[i] += evaluateFoodAttraction(next, snake);
+
+            // 2e. 威胁躲避：远离比自己长的蛇头
+            scores[i] += evaluateThreatAvoidance(next, snake);
+
+            // 2f. 道具吸引
+            scores[i] += evaluateItemAttraction(next, snake);
+
+            if (scores[i] > maxScore) {
+                maxScore = scores[i];
+                bestIdx = i;
             }
         }
 
-        GridPoint head = snake.body.get(0);
-        Food target = null;
-        int bestDist = Integer.MAX_VALUE;
+        // 3. 如果所有方向都不安全，选相对最好的
+        if (maxScore < -5000) {
+            // 所有方向都危险，选可达格子最多的
+            int bestReachable = -1;
+            for (int i = 0; i < candidates.size(); i++) {
+                Direction dir = candidates.get(i);
+                GridPoint next = wrap(head.x() + dir.dx(), head.y() + dir.dy());
+                if (!isCellDeadly(next, snake)) {
+                    int r = floodFillCount(next, snake);
+                    if (r > bestReachable) {
+                        bestReachable = r;
+                        bestIdx = i;
+                    }
+                }
+            }
+        }
+
+        snake.nextDirection = candidates.get(bestIdx);
+    }
+
+    /** 简易 tick 计数器（基于 gameTime） */
+    private long tickCounter() {
+        return Math.round(gameTime * TICK_RATE);
+    }
+
+    /** 坐标环绕 */
+    private GridPoint wrap(int x, int y) {
+        int wx = ((x % MAP_WIDTH) + MAP_WIDTH) % MAP_WIDTH;
+        int wy = ((y % MAP_HEIGHT) + MAP_HEIGHT) % MAP_HEIGHT;
+        return new GridPoint(wx, wy);
+    }
+
+    /** 判断某个格子是否致命（障碍物 / 任何蛇身） */
+    private boolean isCellDeadly(GridPoint cell, Snake self) {
+        // 障碍物
+        for (Obstacle ob : obstacles) {
+            if (ob.getX() == cell.x() && ob.getY() == cell.y()) {
+                return true;
+            }
+        }
+        // 所有蛇身（包括自己和其他蛇）
+        for (Snake s : snakes.values()) {
+            if (!s.isAlive) continue;
+            int start = (s == self) ? 1 : 0; // 自己的尾巴尖不算（下一步会移走）
+            for (int i = start; i < s.body.size(); i++) {
+                GridPoint seg = s.body.get(i);
+                if (seg.x() == cell.x() && seg.y() == cell.y()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** 判断某个格子是否是蛇身（用于 BFS 阻挡判断，包含自己整条蛇） */
+    private boolean isOccupied(GridPoint cell, Snake self, boolean includeSelf) {
+        for (Obstacle ob : obstacles) {
+            if (ob.getX() == cell.x() && ob.getY() == cell.y()) return true;
+        }
+        for (Snake s : snakes.values()) {
+            if (!s.isAlive) continue;
+            if (!includeSelf && s == self) continue;
+            for (GridPoint seg : s.body) {
+                if (seg.x() == cell.x() && seg.y() == cell.y()) return true;
+            }
+        }
+        return false;
+    }
+
+    /** 前瞻评估：从 next 位置开始，沿 dir 方向模拟 lookahead 步 */
+    private int evaluateLookahead(GridPoint start, Direction dir, Snake self) {
+        int x = start.x();
+        int y = start.y();
+        int safety = AI_LOOKAHEAD;
+
+        // 模拟蛇向前移动：头部前进，尾部缩短
+        List<GridPoint> virtualBody = new ArrayList<>(self.body);
+        for (int step = 0; step < AI_LOOKAHEAD; step++) {
+            x = ((x + dir.dx()) % MAP_WIDTH + MAP_WIDTH) % MAP_WIDTH;
+            y = ((y + dir.dy()) % MAP_HEIGHT + MAP_HEIGHT) % MAP_HEIGHT;
+            GridPoint nextHead = new GridPoint(x, y);
+
+            // 检查障碍物
+            for (Obstacle ob : obstacles) {
+                if (ob.getX() == x && ob.getY() == y) {
+                    return -AI_LOOKAHEAD + step;
+                }
+            }
+            // 检查蛇身（不计自己尾部缩短的部分）
+            virtualBody.add(0, nextHead);
+            if (virtualBody.size() > self.body.size()) {
+                virtualBody.remove(virtualBody.size() - 1);
+            }
+            // 检查自碰（跳过头部自己）
+            for (int i = 1; i < virtualBody.size(); i++) {
+                if (virtualBody.get(i).x() == x && virtualBody.get(i).y() == y) {
+                    return -AI_LOOKAHEAD + step;
+                }
+            }
+            // 检查撞其他蛇
+            for (Snake other : snakes.values()) {
+                if (other == self || !other.isAlive) continue;
+                for (GridPoint seg : other.body) {
+                    if (seg.x() == x && seg.y() == y) {
+                        return -AI_LOOKAHEAD + step;
+                    }
+                }
+            }
+        }
+        return safety;
+    }
+
+    /** BFS 计算从起点出发可达的空格数量 */
+    private int floodFillCount(GridPoint start, Snake self) {
+        boolean[][] visited = new boolean[MAP_WIDTH][MAP_HEIGHT];
+        java.util.ArrayDeque<GridPoint> queue = new java.util.ArrayDeque<>();
+        queue.add(start);
+        visited[start.x()][start.y()] = true;
+        int count = 0;
+
+        while (!queue.isEmpty() && count < AI_BFS_MAX_DEPTH * 4) {
+            GridPoint cur = queue.poll();
+            count++;
+
+            for (Direction dir : Direction.values()) {
+                int nx = ((cur.x() + dir.dx()) % MAP_WIDTH + MAP_WIDTH) % MAP_WIDTH;
+                int ny = ((cur.y() + dir.dy()) % MAP_HEIGHT + MAP_HEIGHT) % MAP_HEIGHT;
+                if (!visited[nx][ny]) {
+                    GridPoint np = new GridPoint(nx, ny);
+                    if (!isOccupied(np, self, true)) {
+                        visited[nx][ny] = true;
+                        queue.add(np);
+                    }
+                }
+            }
+        }
+        return count;
+    }
+
+    /** 食物吸引力评分 */
+    private int evaluateFoodAttraction(GridPoint pos, Snake self) {
+        int score = 0;
+
         for (Food food : foods) {
-            int dist = Math.abs(food.getX() - head.x()) + Math.abs(food.getY() - head.y());
-            if (dist < 20 && dist < bestDist) {
-                bestDist = dist;
-                target = food;
+            int dist = manhattan(pos.x(), pos.y(), food.getX(), food.getY());
+            if (dist < 15) {
+                int foodScore = "high".equals(food.getType()) ? 80 : 30;
+                // 距离越近分越高
+                score += Math.max(0, foodScore - dist * 3);
             }
         }
 
-        if (target != null && ThreadLocalRandom.current().nextDouble() < 0.7) {
-            int dx = target.getX() - head.x();
-            int dy = target.getY() - head.y();
-            Direction preferred = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? Direction.RIGHT : Direction.LEFT)
-                : (dy > 0 ? Direction.DOWN : Direction.UP);
-            if (valid.contains(preferred)) {
-                snake.nextDirection = preferred;
-                return;
-            }
+        // 如果蛇很长，降低食物优先级（更注重生存）
+        if (self.body.size() > 15) {
+            score = score / 2;
         }
 
-        snake.nextDirection = valid.get(ThreadLocalRandom.current().nextInt(valid.size()));
+        return score;
+    }
+
+    /** 道具吸引力评分 */
+    private int evaluateItemAttraction(GridPoint pos, Snake self) {
+        int score = 0;
+        for (Item item : items) {
+            int dist = manhattan(pos.x(), pos.y(), item.getX(), item.getY());
+            if (dist < 12) {
+                score += Math.max(0, 50 - dist * 4);
+            }
+        }
+        return score;
+    }
+
+    /** 威胁躲避：远离比自己头更大的蛇 */
+    private int evaluateThreatAvoidance(GridPoint pos, Snake self) {
+        int score = 0;
+        for (Snake other : snakes.values()) {
+            if (other == self || !other.isAlive) continue;
+            GridPoint otherHead = other.body.get(0);
+            int dist = manhattan(pos.x(), pos.y(), otherHead.x(), otherHead.y());
+
+            if (dist < 5) {
+                if (other.body.size() >= self.body.size()) {
+                    // 对方不比自己小 → 很危险，扣分
+                    score -= (6 - dist) * 40;
+                } else {
+                    // 自己更大 → 攻击性加分
+                    score += (6 - dist) * 15;
+                }
+            }
+        }
+        return score;
+    }
+
+    /** 曼哈顿距离（考虑地图环绕，取最短） */
+    private int manhattan(int x1, int y1, int x2, int y2) {
+        int dx = Math.abs(x1 - x2);
+        int dy = Math.abs(y1 - y2);
+        dx = Math.min(dx, MAP_WIDTH - dx);
+        dy = Math.min(dy, MAP_HEIGHT - dy);
+        return dx + dy;
     }
 
     private void applyItem(Snake snake, String itemType) {
@@ -838,7 +1074,7 @@ public class GameEngine {
         if (gameOverCallback != null) {
             gameOverCallback.accept(new GameResult(
                 "game_" + System.currentTimeMillis(),
-                gameDurationSeconds,
+                (int) gameTime,   // 使用实际游戏时长，而非预设时长（单人模式预设为0）
                 rankings,
                 mode == GameMode.SINGLE ? "single" : "multi"
             ));

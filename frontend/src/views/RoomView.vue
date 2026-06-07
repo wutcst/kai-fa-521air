@@ -45,7 +45,10 @@
           <div class="countdown-number">{{ countdown }}</div>
         </div>
 
-        <h4 class="section-label">🌿 玩家列表</h4>
+        <h4 class="section-label">
+          🌿 玩家列表
+          <span v-if="roomInfo.allowBots" class="bot-indicator">🤖 AI陪练已开启</span>
+        </h4>
 
         <div class="player-list">
           <div
@@ -100,7 +103,8 @@
             <span class="player-index">{{ players.length + i }}</span>
             <el-avatar :size="40" :icon="UserFilled" class="player-avatar empty-avatar" />
             <div class="player-info">
-              <span class="player-name empty-text">虚位以待...</span>
+              <span v-if="roomInfo.allowBots" class="player-name bot-text">🤖 AI机器人</span>
+              <span v-else class="player-name empty-text">虚位以待...</span>
             </div>
           </div>
         </div>
@@ -249,10 +253,15 @@ const isSingleMode = computed(() => roomInfo.value.gameMode === 'single')
 
 /** 单人模式：房主即可开始
  *  多人模式（自己创建）：全员准备即可开始
- *  多人模式（大厅加入）：房间满员+全员准备才可开始 */
+ *  多人模式（大厅加入）：房间满员+全员准备才可开始
+ *  AI陪练模式：房主准备了即可开始（机器人自动补充） */
 const canStart = computed(() => {
   if (!isHost.value) return false
   if (isSingleMode.value) return true
+  // AI陪练模式：只有房主一人也能开始
+  if (roomInfo.value.allowBots) {
+    return players.value.length >= 1 && players.value.every(p => p.isReady)
+  }
   return players.value.length >= 2 && players.value.every(p => p.isReady)
 })
 
@@ -428,7 +437,7 @@ async function connectAndJoin() {
     hasPassword: roomInfo.value.hasPassword,
     password: roomInfo.value.password || '',
     create: createdByMe.value,
-    allowBots: false
+    allowBots: roomInfo.value.allowBots || false
   })
 }
 
@@ -451,7 +460,8 @@ function handleGameStart(data) {
     roomId: roomInfo.value.id,
     gameMode: roomInfo.value.gameMode,
     gameDuration: roomInfo.value.gameDuration,
-    maxPlayers: roomInfo.value.maxPlayers
+    maxPlayers: roomInfo.value.maxPlayers,
+    allowBots: roomInfo.value.allowBots
   }))
   const mode = roomInfo.value.gameMode === 'single' ? '?mode=single' : '?mode=multi'
   router.push(`/game/${roomInfo.value.id}${mode}`)
@@ -489,6 +499,7 @@ function loadRoomSeed() {
   const isSelfCreated = !!savedConfig
   const maxPlayers = savedConfig?.maxPlayers || joinedRoom?.maxPlayers || 6
   const gameMode = savedConfig?.gameMode || joinedRoom?.gameMode || 'multi'
+  const allowBots = savedConfig?.allowBots || joinedRoom?.allowBots || false
 
   const info = {
     id: savedConfig?.roomId || joinedRoom?.id || route.params.roomId || 'room_' + Date.now(),
@@ -497,7 +508,8 @@ function loadRoomSeed() {
     gameDuration: savedConfig?.gameDuration || joinedRoom?.gameDuration || 300,
     hasPassword: savedConfig?.hasPassword || joinedRoom?.hasPassword || false,
     password: savedConfig?.password || joinedRoom?.password || '',
-    gameMode
+    gameMode,
+    allowBots
   }
 
   sessionStorage.removeItem('new_room_config')
@@ -594,6 +606,14 @@ onUnmounted(() => {
 .section-label {
   padding: 14px 16px 8px;
   font-size: 13px; color: var(--text-secondary); letter-spacing: 1px;
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* AI陪练指示器 */
+.bot-indicator {
+  font-size: 11px; color: #7c4dff; background: #ede7f6;
+  padding: 2px 8px; border-radius: 10px;
+  letter-spacing: 0;
 }
 
 /* 倒计时覆盖 */
@@ -648,6 +668,7 @@ onUnmounted(() => {
 .unready-badge { color: var(--warning-color); }
 .player-level { color: var(--text-secondary); }
 .empty-text { color: var(--text-muted); }
+.bot-text { color: #7c4dff; font-weight: 500; }
 .host-player-ops {
   display: flex; gap: 2px; flex-shrink: 0;
 }
