@@ -64,6 +64,10 @@ public class RoomManager {
         String playerId = fallback(request.playerId(), "player_" + session.getId());
         String roomId = fallback(request.roomId(), "room_" + System.currentTimeMillis());
 
+        // ===== 关键修复：加入新房间前，先从所有旧房间中移除该玩家 =====
+        // 防止玩家同时存在于多个房间（如上局残留）
+        removePlayerFromAllRoomsExcept(playerId, roomId, session);
+
         Room room = rooms.computeIfAbsent(roomId, id -> createRoom(id, request));
         synchronized (room.getLock()) {
             if (room.getStatus() == RoomStatus.PLAYING && !room.getPlayers().containsKey(playerId)) {
@@ -103,7 +107,15 @@ public class RoomManager {
     }
 
     public void leaveRoom(WebSocketSession session, LeaveRoomRequest request) {
-        SessionRef ref = getSessionRef(session, request == null ? null : request.roomId());
+        // ===== 关键修复：使用 request.playerId 作为回退，而非生成临时 ID =====
+        String reqRoomId = request != null ? request.roomId() : null;
+        String reqPlayerId = request != null ? request.playerId() : null;
+        SessionRef ref = sessionIndex.get(session.getId());
+        if (ref == null && reqRoomId != null) {
+            // sessionIndex 中找不到该 session 时，使用请求中的 roomId + playerId
+            // 而不是生成一个不匹配的临时 playerId
+            ref = new SessionRef(reqRoomId, fallback(reqPlayerId, "player_" + session.getId()));
+        }
         if (ref == null) {
             return;
         }
@@ -391,6 +403,10 @@ public class RoomManager {
     public void registerRoom(String roomId, String name, String hostId, String nickname,
                               String gameMode, int maxPlayers, int gameDuration,
                               boolean hasPassword, String password, boolean allowBots) {
+        // ===== 关键修复：创建新房间前，先从旧房间中移除房主 =====
+        // 防止房主同时存在于多个房间（上局残留导致旧房间玩家出现在新房间）
+        removePlayerFromAllRoomsExcept(hostId, roomId, null);
+
         Room room = new Room(roomId);
         room.setName(name);
         room.setHostId(hostId);
@@ -721,6 +737,47 @@ public class RoomManager {
             if (room.getEngine() != null) {
                 room.getEngine().stop();
             }
+        }
+    }
+
+    /**
+     * 从所有房间中移除指定玩家（除了 excludeRoomId 指定的房间）。
+     * 用于玩家切换房间时，确保不会同时存在于多个房间。
+     * 如果旧房间变空，会自动清理。
+     */
+    private void removePlayerFromAllRoomsExcept(String playerId, String excludeRoomId, WebSocketSession newSession) {
+        List<Room> affectedRooms = new ArrayList<>();
+        for (Room r : rooms.values()) {
+            if (r.getId().equals(excludeRoomId)) {
+                continue;
+            }
+            Player removed;
+            synchronized (r.getLock()) {
+                removed = r.getPlayers().remove(playerId);
+            }
+            if (removed != null) {
+                log.info("Player {} removed from old room {} (joining new room {})",
+                        playerId, r.getId(), excludeRoomId);
+                // 如果该玩家正在游戏中（引擎存在），消除他
+                if (r.getEngine() != null) {
+                    r.getEngine().eliminatePlayer(playerId, "switched room");
+                }
+                // 如果移除的是房主，转移房主
+                if (Objects.equals(r.getHostId(), playerId)) {
+                    r.setHostId(r.getPlayers().values().stream()
+                            .findFirst().map(Player::getId).orElse(null));
+                    for (Player p : r.getPlayers().values()) {
+                        p.setHost(Objects.equals(p.getId(), r.getHostId()));
+                    }
+                }
+                broadcastSystem(r, removed.getNickname() + " left the room");
+                affectedRooms.add(r);
+            }
+        }
+        // 广播受影响房间的更新，并清理空房间
+        for (Room r : affectedRooms) {
+            broadcastRoomUpdate(r);
+            cleanupIfEmpty(r);
         }
     }
 

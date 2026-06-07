@@ -3,6 +3,7 @@
  * 定义应用的页面路由和导航守卫
  */
 import { createRouter, createWebHistory } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 
 const routes = [
   {
@@ -56,8 +57,16 @@ router.beforeEach((to, from, next) => {
 
   // 检查是否需要登录权限
   if (to.meta.requiresAuth) {
-    // mock模式：从 localStorage 读取模拟的登录状态
-    const token = localStorage.getItem('snake_token')
+    // 优先从 Pinia store（当前标签页内存）读取 token
+    let token = ''
+    try {
+      const userStore = useUserStore()
+      token = userStore.token
+    } catch (_) { /* store 尚未初始化 */ }
+    // 回退到 localStorage（兼容刷新后的初始化场景）
+    if (!token) {
+      token = localStorage.getItem('snake_token') || ''
+    }
     if (!token) {
       // 未登录，跳转到登录页
       next({ name: 'Login', query: { redirect: to.fullPath } })

@@ -4,12 +4,21 @@
  * 当前为占位，后续对接后端
  */
 import axios from 'axios'
+import { useUserStore } from '@/stores/user'
 
 const BASE_URL = '/api/games'
 
+function getToken() {
+  try {
+    const store = useUserStore()
+    if (store.token) return store.token
+  } catch (_) { /* store 尚未初始化 */ }
+  return localStorage.getItem('snake_token') || ''
+}
+
 const request = axios.create()
 request.interceptors.request.use(config => {
-  const token = localStorage.getItem('snake_token')
+  const token = getToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }

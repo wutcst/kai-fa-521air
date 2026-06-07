@@ -3,12 +3,26 @@
  * 封装房间相关 HTTP 请求
  */
 import axios from 'axios'
+import { useUserStore } from '@/stores/user'
 
 const BASE_URL = '/api/rooms'
 
+/**
+ * 获取当前有效的 token
+ * 优先从 Pinia store（当前标签页内存）读取，
+ * 回退到 localStorage（兼容页面刷新后的初始化场景）
+ */
+function getToken() {
+  try {
+    const store = useUserStore()
+    if (store.token) return store.token
+  } catch (_) { /* store 尚未初始化 */ }
+  return localStorage.getItem('snake_token') || ''
+}
+
 const request = axios.create()
 request.interceptors.request.use(function(config) {
-  var token = localStorage.getItem('snake_token')
+  var token = getToken()
   if (token) {
     config.headers.Authorization = 'Bearer ' + token
   }
