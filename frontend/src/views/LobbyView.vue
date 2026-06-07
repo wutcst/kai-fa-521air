@@ -353,9 +353,10 @@ async function handleCreateRoom() {
 function handleLink(type) {
   if (type === 'history') {
     router.push('/history')
+  } else if (type === 'rank') {
+    router.push('/ranking')
   } else {
-    const labels = { rank: '排行榜', guide: '新手引导' }
-    ElMessage.info(`${labels[type] || '功能'}开发中...`)
+    ElMessage.info('新手引导开发中...')
   }
 }
 

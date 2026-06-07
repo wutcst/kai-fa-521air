@@ -90,6 +90,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/rooms/list").permitAll()
                 .requestMatchers("/api/rooms/online-count").permitAll()
                 .requestMatchers("/api/games").permitAll()
+                .requestMatchers("/api/ranking").permitAll()
+                .requestMatchers("/api/ranking/**").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtFilter, AuthorizationFilter.class);

@@ -82,6 +82,23 @@ public class RoomManager {
 
             if (!room.getPlayers().containsKey(playerId)) {
                 if (room.getPlayers().size() >= room.getMaxPlayers()) {
+                    // ===== 关键修复：检查是否为房主用不同 playerId 重连 =====
+                    // 场景：REST 创建房间时用 JWT 用户 ID 注册了房主，
+                    // 但前端 getPlayerId() 因 userInfo 丢失回退到了错误 ID
+                    if (request.create() && room.getHostId() != null) {
+                        Player existingHost = room.getPlayers().get(room.getHostId());
+                        if (existingHost != null && existingHost.getSession() == null) {
+                            // 确认是房主重连：将当前 session 绑定到房主的真实 playerId
+                            log.info("Host reconnecting: session bound to hostId={} (request playerId={}) in room {}",
+                                    room.getHostId(), playerId, roomId);
+                            existingHost.setSession(session);
+                            existingHost.setNickname(safeName(request.nickname()));
+                            sessionIndex.put(session.getId(), new SessionRef(roomId, room.getHostId()));
+                            broadcastRoomUpdate(room);
+                            broadcastSystem(room, existingHost.getNickname() + " joined the room");
+                            return;
+                        }
+                    }
                     sendError(session, "room is full");
                     return;
                 }

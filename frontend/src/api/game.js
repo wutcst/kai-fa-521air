@@ -61,3 +61,26 @@ export async function getGameHistoryApi(page = 1, size = 10, mode = 'all') {
   const response = await request.get(BASE_URL, { params: { page, size, mode } })
   return response.data
 }
+
+// ====== 排行榜 API ======
+
+const RANK_BASE = '/api/ranking'
+
+/**
+ * 获取排行榜列表
+ * @param {string} mode 模式: overall(总榜) / multi(多人) / single(单人)
+ * @param {number} page 页码
+ * @param {number} size 每页条数
+ */
+export async function getRankingApi(mode = 'overall', page = 1, size = 20) {
+  const response = await request.get(RANK_BASE, { params: { mode, page, size } })
+  return response.data
+}
+
+/**
+ * 获取当前用户的排名信息
+ */
+export async function getMyRankApi() {
+  const response = await request.get(`${RANK_BASE}/my-rank`)
+  return response.data
+}

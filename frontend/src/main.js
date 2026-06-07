@@ -24,4 +24,10 @@ app.use(createPinia())       // Pinia 状态管理
 app.use(router)              // Vue Router 路由
 app.use(ElementPlus)         // Element Plus UI 组件库
 
+// ===== 关键修复：启动时恢复登录状态 =====
+// 防止页面刷新后 userInfo 丢失导致 getPlayerId() 回退到错误的 ID
+import { useUserStore } from '@/stores/user'
+const userStore = useUserStore()
+userStore.restoreSession()
+
 app.mount('#app')
