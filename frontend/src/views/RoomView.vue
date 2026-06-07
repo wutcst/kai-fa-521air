@@ -497,7 +497,9 @@ function loadRoomSeed() {
   if (joinedRoomRaw) { try { joinedRoom = JSON.parse(joinedRoomRaw) } catch {} }
 
   const isSelfCreated = !!savedConfig
-  const maxPlayers = savedConfig?.maxPlayers || joinedRoom?.maxPlayers || 6
+  // 快速匹配：无本地缓存时，maxPlayers 默认 2 而非 6
+  const hasLocalData = !!(savedConfig || joinedRoom)
+  const maxPlayers = savedConfig?.maxPlayers || joinedRoom?.maxPlayers || (hasLocalData ? 6 : 2)
   const gameMode = savedConfig?.gameMode || joinedRoom?.gameMode || 'multi'
   const allowBots = savedConfig?.allowBots || joinedRoom?.allowBots || false
 

@@ -64,6 +64,14 @@ export async function joinRoomApi(roomId, password) {
 }
 
 /**
+ * 获取房间详情（用于快速匹配等无 sessionStorage 缓存的场景）
+ */
+export async function getRoomApi(roomId) {
+  var response = await request.get(BASE_URL + '/' + roomId)
+  return response.data
+}
+
+/**
  * 退出房间
  */
 export async function leaveRoomApi(roomId) {

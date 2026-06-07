@@ -61,10 +61,15 @@ public class MatchmakingService {
             return MatchResult.matched(existingRoomId, "已有匹配结果");
         }
 
-        // 检查队列中是否有等待的玩家
+        // 检查队列中是否有等待的玩家（跳过自己，找其他对手）
         MatchRequest opponent = queue.poll();
-        if (opponent != null && !opponent.userId().equals(userId)) {
-            // 配对成功！创建房间
+        while (opponent != null && opponent.userId().equals(userId)) {
+            // 取出的是自己（极端情况），暂存并继续找下一个
+            queue.add(opponent);
+            opponent = queue.poll();
+        }
+        if (opponent != null) {
+            // 配对成功！创建 2 人对战房间
             String roomId = createMatchRoom(opponent, new MatchRequest(userId, nickname));
             matchResults.put(opponent.userId(), roomId);
             matchResults.put(userId, roomId);
@@ -72,14 +77,11 @@ public class MatchmakingService {
             return MatchResult.matched(roomId, "匹配成功");
         }
 
-        // 如果取出的就是自己（极端情况），放回去
-        if (opponent != null) {
-            queue.add(opponent);
+        // 无人等待，加入队列（需再次确认不重复）
+        if (!isInQueue(userId)) {
+            queue.add(new MatchRequest(userId, nickname));
+            log.info("Player {} ({}) added to matchmaking queue, queue size: {}", nickname, userId, queue.size());
         }
-
-        // 无人等待，加入队列
-        queue.add(new MatchRequest(userId, nickname));
-        log.info("Player {} ({}) added to matchmaking queue, queue size: {}", nickname, userId, queue.size());
         return MatchResult.waiting("已加入匹配队列，等待对手...");
     }
 

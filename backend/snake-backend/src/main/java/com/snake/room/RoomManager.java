@@ -370,6 +370,10 @@ public class RoomManager {
      * 房间内的玩家此时没有 WebSocket 会话，后续通过 join_room 绑定
      */
     public void registerRoom(Room room) {
+        // 清理所有玩家在旧房间中的残留（防止快速匹配玩家同时存在于多个房间）
+        for (String playerId : room.getPlayers().keySet()) {
+            removePlayerFromAllRoomsExcept(playerId, room.getId(), null);
+        }
         rooms.put(room.getId(), room);
         log.info("Room registered in RoomManager: id={}, name={}, players={}",
                 room.getId(), room.getName(), room.getPlayers().size());
