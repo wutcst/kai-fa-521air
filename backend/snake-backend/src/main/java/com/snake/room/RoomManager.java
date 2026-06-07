@@ -362,6 +362,16 @@ public class RoomManager {
         send(session, type, data);
     }
 
+    /**
+     * 将已构造好的房间注册到 RoomManager（供 MatchmakingService 等外部服务使用）
+     * 房间内的玩家此时没有 WebSocket 会话，后续通过 join_room 绑定
+     */
+    public void registerRoom(Room room) {
+        rooms.put(room.getId(), room);
+        log.info("Room registered in RoomManager: id={}, name={}, players={}",
+                room.getId(), room.getName(), room.getPlayers().size());
+    }
+
     public int getOnlineCount() {
         return sessionIndex.size();
     }

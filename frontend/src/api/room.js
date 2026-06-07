@@ -78,3 +78,31 @@ export async function updateRoomApi(roomId, settings) {
   var response = await request.put(BASE_URL + '/' + roomId, settings)
   return response.data
 }
+
+// ====== 快速匹配 API ======
+
+const MATCH_BASE = '/api/matchmaking'
+
+/**
+ * 加入匹配队列
+ */
+export async function joinMatchmakingApi() {
+  var response = await request.post(MATCH_BASE + '/join')
+  return response.data
+}
+
+/**
+ * 取消匹配
+ */
+export async function cancelMatchmakingApi() {
+  var response = await request.post(MATCH_BASE + '/cancel')
+  return response.data
+}
+
+/**
+ * 查询匹配状态（轮询）
+ */
+export async function checkMatchStatusApi() {
+  var response = await request.get(MATCH_BASE + '/status')
+  return response.data
+}

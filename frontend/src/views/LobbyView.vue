@@ -185,19 +185,50 @@
         <el-button type="primary" @click="confirmJoinWithPassword">加入</el-button>
       </template>
     </el-dialog>
+
+    <!-- 快速匹配对话框 -->
+    <el-dialog v-model="showMatchingDialog" title="⚡ 快速匹配" width="400px" :close-on-click-modal="false" :show-close="false" center>
+      <div class="matching-content">
+        <div class="matching-animation">
+          <div class="matching-pulse">
+            <span class="pulse-icon">⚡</span>
+          </div>
+          <div class="matching-rings">
+            <span class="ring r1"></span>
+            <span class="ring r2"></span>
+            <span class="ring r3"></span>
+          </div>
+        </div>
+        <p class="matching-status">{{ matchingMessage }}</p>
+        <p class="matching-hint">正在为您寻找旗鼓相当的对手...</p>
+        <div class="matching-dots">
+          <span class="mdot" v-for="i in 3" :key="i" :style="{ animationDelay: (i - 1) * 0.3 + 's' }"></span>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="cancelMatchmaking" :loading="isCancelling">取消匹配</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { UserFilled, ArrowDown, Search, Clock, Trophy, QuestionFilled, RefreshRight, Lock } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
-import { getRoomListApi, getOnlineCountApi, createRoomApi, joinRoomApi } from '@/api/room'
+import { getRoomListApi, getOnlineCountApi, createRoomApi, joinRoomApi, joinMatchmakingApi, cancelMatchmakingApi, checkMatchStatusApi } from '@/api/room'
 
 const router = useRouter()
 const userStore = useUserStore()
+
+// ---- 快速匹配状态 ----
+const showMatchingDialog = ref(false)
+const matchingMessage = ref('正在匹配对手...')
+const isCancelling = ref(false)
+let matchPollTimer = null
+let matchPollActive = false
 
 const onlineCount = ref(0)
 const isLoading = ref(false)
@@ -289,7 +320,78 @@ async function fetchOnlineCount() {
   }
 }
 
-function handleQuickMatch() { ElMessage.info('正在匹配对手...（功能开发中）') }
+async function handleQuickMatch() {
+  showMatchingDialog.value = true
+  matchingMessage.value = '正在匹配对手...'
+  isCancelling.value = false
+
+  try {
+    const result = await joinMatchmakingApi()
+    if (result.matched) {
+      matchingMessage.value = '匹配成功！即将进入房间...'
+      setTimeout(() => {
+        showMatchingDialog.value = false
+        router.push('/room/' + result.roomId)
+      }, 800)
+      return
+    }
+    startMatchPolling()
+  } catch (e) {
+    console.error('加入匹配失败:', e)
+    ElMessage.error('匹配失败，请重试')
+    showMatchingDialog.value = false
+  }
+}
+
+function startMatchPolling() {
+  matchPollActive = true
+  matchingMessage.value = '正在寻找对手...'
+
+  async function poll() {
+    if (!matchPollActive) return
+    try {
+      const result = await checkMatchStatusApi()
+      if (result.matched) {
+        matchPollActive = false
+        matchingMessage.value = '匹配成功！即将进入房间...'
+        setTimeout(() => {
+          showMatchingDialog.value = false
+          router.push('/room/' + result.roomId)
+        }, 800)
+        return
+      }
+      if (!result.inQueue) {
+        matchPollActive = false
+        matchingMessage.value = '匹配已取消'
+        setTimeout(() => { showMatchingDialog.value = false }, 1000)
+        return
+      }
+      matchingMessage.value = '正在寻找对手...（队列中 ' + (result.queueSize || 0) + ' 人）'
+      matchPollTimer = setTimeout(poll, 1500)
+    } catch (e) {
+      console.error('轮询匹配状态失败:', e)
+      matchPollTimer = setTimeout(poll, 2000)
+    }
+  }
+
+  matchPollTimer = setTimeout(poll, 1500)
+}
+
+async function cancelMatchmaking() {
+  isCancelling.value = true
+  matchPollActive = false
+  if (matchPollTimer) {
+    clearTimeout(matchPollTimer)
+    matchPollTimer = null
+  }
+  try {
+    await cancelMatchmakingApi()
+  } catch (e) {
+    console.error('取消匹配失败:', e)
+  }
+  showMatchingDialog.value = false
+  isCancelling.value = false
+}
 
 function handleJoinRoom(room) {
   // 单人模式房间，如果已满(状态full或人数已满)，不允许加入
@@ -371,6 +473,15 @@ onMounted(() => {
   fetchOnlineCount()
   setInterval(() => refreshRoomList(), 5000)
   setInterval(() => fetchOnlineCount(), 15000)
+})
+
+onUnmounted(() => {
+  // 清理匹配轮询
+  matchPollActive = false
+  if (matchPollTimer) {
+    clearTimeout(matchPollTimer)
+    matchPollTimer = null
+  }
 })
 </script>
 
@@ -488,5 +599,79 @@ onMounted(() => {
 :deep(.el-dialog__title) { color: var(--text-primary); }
 :deep(.el-radio-button__inner) {
   border-radius: 8px;
+}
+
+/* 快速匹配动画 */
+.matching-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0;
+}
+.matching-animation {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  margin-bottom: 20px;
+}
+.matching-pulse {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+.pulse-icon {
+  font-size: 36px;
+  animation: pulse-icon 1.2s ease-in-out infinite;
+}
+@keyframes pulse-icon {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.8; }
+}
+.matching-rings {
+  position: absolute;
+  inset: 0;
+}
+.ring {
+  position: absolute;
+  inset: -8px;
+  border: 2px solid var(--primary-color);
+  border-radius: 50%;
+  opacity: 0;
+  animation: ring-expand 1.8s ease-out infinite;
+}
+.ring.r2 { animation-delay: 0.6s; }
+.ring.r3 { animation-delay: 1.2s; }
+@keyframes ring-expand {
+  0% { transform: scale(0.6); opacity: 0.6; }
+  100% { transform: scale(1.3); opacity: 0; }
+}
+.matching-status {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.matching-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.matching-dots {
+  display: flex;
+  gap: 8px;
+}
+.mdot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  animation: dot-bounce 0.9s ease-in-out infinite;
+}
+@keyframes dot-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.3; }
+  40% { transform: translateY(-10px); opacity: 1; }
 }
 </style>

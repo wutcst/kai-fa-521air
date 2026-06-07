@@ -92,6 +92,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/games").permitAll()
                 .requestMatchers("/api/ranking").permitAll()
                 .requestMatchers("/api/ranking/**").permitAll()
+                .requestMatchers("/api/matchmaking/**").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtFilter, AuthorizationFilter.class);

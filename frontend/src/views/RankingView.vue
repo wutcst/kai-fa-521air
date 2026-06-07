@@ -38,7 +38,7 @@
           <span class="my-rank-pos">
             总榜 <strong>#{{ myRank.overallRank }}</strong>
             <span class="sep">|</span>
-            胜场 <strong>#{{ myRank.winRank || '-' }}</strong>
+            多人最高分 <strong>#{{ myRank.multiRank || '-' }}</strong>
           </span>
         </div>
       </div>
