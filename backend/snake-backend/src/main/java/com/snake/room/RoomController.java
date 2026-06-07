@@ -90,7 +90,13 @@ public class RoomController {
                 // 使用实时数据（玩家数量更准确）
                 merged.add(live);
             } else {
-                // 使用 DB 数据
+                // DB 中有记录但 RoomManager 中没有的房间：
+                // 如果状态是 waiting 且不在实时列表中，说明已被清理但 DB 未更新，跳过
+                if ("waiting".equals(r.getStatus())) {
+                    log.info("Skipping stale room {} from DB (status=waiting, not in live RoomManager)", r.getId());
+                    continue;
+                }
+                // 使用 DB 数据（finished 状态的房间保留以展示历史）
                 long playerCount = roomPlayerRepository.countByRoomId(r.getId());
                 // 查房主昵称
                 String hostName = null;
@@ -242,9 +248,17 @@ public class RoomController {
             if (pwd == null || pwd.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("message", "需要房间密码"));
             }
-            // 验证密码（RoomManager 中已有密码校验，这里做额外验证）
-            if (!summary.hasPassword() && request != null && request.getPassword() != null) {
-                // 密码验证通过
+            // 验证密码：优先从 RoomManager 获取，其次从数据库获取
+            Room room = roomManager.getRoomById(roomId);
+            String storedPassword = null;
+            if (room != null) {
+                storedPassword = room.getPassword();
+            } else {
+                storedPassword = roomRepository.findById(roomId)
+                        .map(RoomEntity::getPassword).orElse(null);
+            }
+            if (storedPassword != null && !storedPassword.equals(pwd)) {
+                return ResponseEntity.badRequest().body(Map.of("message", "密码错误"));
             }
         }
 

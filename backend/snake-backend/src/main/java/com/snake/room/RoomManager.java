@@ -2,6 +2,7 @@ package com.snake.room;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.snake.entity.RoomEntity;
 import com.snake.game.GameEngine;
 import com.snake.game.GameEngine.GameEvent;
 import com.snake.game.GameEngine.GameMode;
@@ -10,6 +11,7 @@ import com.snake.game.GameEngine.GameStateSnapshot;
 import com.snake.game.GameEngine.PlayerSeed;
 import com.snake.game.GameEngine.ScoreEntry;
 import com.snake.game.GameEngine.SnakeState;
+import com.snake.repository.RoomRepository;
 import com.snake.service.GameService;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -40,15 +42,17 @@ public class RoomManager {
 
     private final ObjectMapper objectMapper;
     private final GameService gameService;
+    private final RoomRepository roomRepository;
     private final Map<String, Room> rooms = new ConcurrentHashMap<>();
     private final Map<String, SessionRef> sessionIndex = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);
     /** 每个 WebSocket Session 的锁对象，防止并发写导致 TEXT_PARTIAL_WRITING */
     private final Map<WebSocketSession, Object> sessionLocks = new WeakHashMap<>();
 
-    public RoomManager(ObjectMapper objectMapper, GameService gameService) {
+    public RoomManager(ObjectMapper objectMapper, GameService gameService, RoomRepository roomRepository) {
         this.objectMapper = objectMapper;
         this.gameService = gameService;
+        this.roomRepository = roomRepository;
     }
 
     public void joinRoom(WebSocketSession session, JoinRoomRequest request) {
@@ -374,6 +378,13 @@ public class RoomManager {
     }
 
     /**
+     * 获取房间对象（包含密码等完整信息）
+     */
+    public Room getRoomById(String roomId) {
+        return rooms.get(roomId);
+    }
+
+    /**
      * 通过 REST API 创建房间时，向 RoomManager 注册房间，
      * 使其出现在实时房间列表中，并允许后续 WebSocket 连接加入。
      */
@@ -466,6 +477,17 @@ public class RoomManager {
         log.info("handleGameOver: room={}, mode={}, rankings={}", room.getId(), result.gameMode(), result.rankings().size());
         room.setStatus(RoomStatus.FINISHED);
         broadcastRoomUpdate(room);
+
+        // 同步更新数据库中房间状态为 finished
+        try {
+            roomRepository.findById(room.getId()).ifPresent(r -> {
+                r.setStatus("finished");
+                roomRepository.save(r);
+            });
+            log.info("Room status updated to finished in DB: {}", room.getId());
+        } catch (Exception e) {
+            log.error("Failed to update room status in DB for room {}: {}", room.getId(), e.getMessage());
+        }
 
         // 持久化游戏结果到数据库
         try {
@@ -681,6 +703,20 @@ public class RoomManager {
 
     private void cleanupIfEmpty(Room room) {
         if (room.getPlayers().isEmpty()) {
+            // 如果房间已经结束或被清理，确保数据库状态同步为 finished
+            if (room.getStatus() == RoomStatus.FINISHED || room.getStatus() == RoomStatus.PLAYING) {
+                try {
+                    roomRepository.findById(room.getId()).ifPresent(r -> {
+                        if (!"finished".equals(r.getStatus())) {
+                            r.setStatus("finished");
+                            roomRepository.save(r);
+                            log.info("Room {} DB status synced to finished during cleanup", room.getId());
+                        }
+                    });
+                } catch (Exception e) {
+                    log.error("Failed to sync room status during cleanup for {}: {}", room.getId(), e.getMessage());
+                }
+            }
             rooms.remove(room.getId());
             if (room.getEngine() != null) {
                 room.getEngine().stop();
