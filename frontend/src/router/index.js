@@ -39,6 +39,12 @@ const routes = [
     name: 'Result',
     component: () => import('@/views/ResultView.vue'),
     meta: { title: '结算页面', requiresAuth: true }
+  },
+  {
+    path: '/history',
+    name: 'History',
+    component: () => import('@/views/HistoryView.vue'),
+    meta: { title: '对战记录', requiresAuth: true }
   }
 ]
 

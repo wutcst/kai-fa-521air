@@ -234,6 +234,8 @@ const roomList = ref([])
 
 const filteredRooms = computed(() => {
   let rooms = [...roomList.value]
+  // 大厅默认不展示已结束的房间（游戏结束应注销）
+  rooms = rooms.filter(r => r.status !== 'finished')
   if (searchKeyword.value) rooms = rooms.filter(r => r.name.includes(searchKeyword.value))
   if (statusFilter.value === 'waiting') rooms = rooms.filter(r => r.status === 'waiting' && r.playerCount < r.maxPlayers)
   if (statusFilter.value === 'playing') rooms = rooms.filter(r => r.status === 'playing')
@@ -253,8 +255,8 @@ const recentRooms = computed(() => {
   } catch { return [] }
 })
 
-function getStatusType(s) { return s === 'waiting' ? 'success' : s === 'playing' ? 'warning' : 'danger' }
-function getStatusText(s) { return s === 'waiting' ? '等待中' : s === 'playing' ? '游戏中' : '已满' }
+function getStatusType(s) { return s === 'waiting' ? 'success' : s === 'playing' ? 'warning' : s === 'finished' ? 'info' : 'danger' }
+function getStatusText(s) { return s === 'waiting' ? '等待中' : s === 'playing' ? '游戏中' : s === 'finished' ? '已结束' : '已满' }
 function getProgressColor(r) {
   const p = r.playerCount / r.maxPlayers
   return p >= 1 ? '#ef5350' : p >= 0.7 ? '#ffa726' : '#66bb6a'
@@ -293,6 +295,7 @@ function handleJoinRoom(room) {
   // 单人模式房间，如果已满(状态full或人数已满)，不允许加入
   if (room.playerCount >= room.maxPlayers || room.status === 'full') { ElMessage.warning('房间已满，无法加入'); return }
   if (room.status === 'playing') { ElMessage.warning('游戏已开始，无法加入'); return }
+  if (room.status === 'finished') { ElMessage.warning('游戏已结束，无法加入'); return }
   // 只有等待中的房间可以加入
   if (room.status !== 'waiting') { ElMessage.warning('该房间不可加入'); return }
   if (room.hasPassword) { pendingJoinRoom = room; joinPassword.value = ''; showPasswordDialog.value = true; return }
@@ -348,8 +351,12 @@ async function handleCreateRoom() {
 }
 
 function handleLink(type) {
-  const labels = { rank: '排行榜', history: '对战记录', guide: '新手引导' }
-  ElMessage.info(`${labels[type] || '功能'}开发中...`)
+  if (type === 'history') {
+    router.push('/history')
+  } else {
+    const labels = { rank: '排行榜', guide: '新手引导' }
+    ElMessage.info(`${labels[type] || '功能'}开发中...`)
+  }
 }
 
 function handleLogout() {

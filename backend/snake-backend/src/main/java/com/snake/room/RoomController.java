@@ -56,12 +56,14 @@ public class RoomController {
             @RequestParam(name = "keyword", required = false) String keyword,
             @RequestParam(name = "mode", required = false) String mode) {
 
-        // 从数据库查询房间
+        // 从数据库查询房间（默认排除已结束的房间）
         List<RoomEntity> dbRooms;
         if (status != null && !status.isBlank() && !"all".equals(status)) {
             dbRooms = roomRepository.findByStatusOrderByCreatedAtDesc(status);
         } else {
+            // 大厅列表不展示已结束（finished）的房间
             dbRooms = roomRepository.findAll().stream()
+                    .filter(r -> !"finished".equals(r.getStatus()))
                     .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
                     .collect(Collectors.toList());
         }

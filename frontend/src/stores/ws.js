@@ -3,7 +3,7 @@ import { ref } from 'vue'
 
 const DEFAULT_URL = import.meta.env.VITE_WS_URL
   || (typeof window !== 'undefined'
-    ? `ws://${window.location.hostname}:8080/ws/game`
+    ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/game`
     : 'ws://localhost:8080/ws/game')
 
 export const useWsStore = defineStore('ws', () => {

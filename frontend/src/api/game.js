@@ -1,7 +1,6 @@
 /**
  * 游戏 API 模块
- * 封装游戏相关HTTP请求（获取结算数据、游戏历史等）
- * 当前为占位，后续对接后端
+ * 封装游戏相关HTTP请求（游戏结算、历史记录、玩家统计等）
  */
 import axios from 'axios'
 import { useUserStore } from '@/stores/user'
@@ -26,31 +25,39 @@ request.interceptors.request.use(config => {
 })
 
 /**
- * 获取游戏结算数据
- * @param {string} gameId 游戏ID
+ * 获取游戏结算数据（通过游戏ID获取详情含排名）
+ * @param {string|number} gameId 游戏ID
  */
 export async function getGameResultApi(gameId) {
-  // ---- Mock 占位 ----
-  await new Promise(resolve => setTimeout(resolve, 300))
-  return {
-    gameId,
-    duration: 300,
-    rankings: []
-  }
-
-  // const response = await request.get(`${BASE_URL}/${gameId}/result`)
-  // return response.data
+  const response = await request.get(`${BASE_URL}/${gameId}`)
+  return response.data
 }
 
 /**
- * 获取游戏历史记录
+ * 获取当前用户的对战历史
  * @param {number} page 页码
  * @param {number} size 每页条数
  */
-export async function getGameHistoryApi(page = 1, size = 10) {
-  await new Promise(resolve => setTimeout(resolve, 300))
-  return { list: [], total: 0, page, size }
+export async function getMyHistoryApi(page = 1, size = 10) {
+  const response = await request.get(`${BASE_URL}/my-history`, { params: { page, size } })
+  return response.data
+}
 
-  // const response = await request.get(`${BASE_URL}/history`, { params: { page, size } })
-  // return response.data
+/**
+ * 获取当前用户的统计概览
+ */
+export async function getMyStatsApi() {
+  const response = await request.get(`${BASE_URL}/my-stats`)
+  return response.data
+}
+
+/**
+ * 获取所有游戏历史（全局）
+ * @param {number} page 页码
+ * @param {number} size 每页条数
+ * @param {string} mode 模式筛选: multi/single/all
+ */
+export async function getGameHistoryApi(page = 1, size = 10, mode = 'all') {
+  const response = await request.get(BASE_URL, { params: { page, size, mode } })
+  return response.data
 }
