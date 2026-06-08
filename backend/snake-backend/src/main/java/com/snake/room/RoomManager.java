@@ -515,17 +515,22 @@ public class RoomManager {
             log.error("Failed to update room status in DB for room {}: {}", room.getId(), e.getMessage());
         }
 
-        // 持久化游戏结果到数据库
+        // 持久化游戏结果到数据库，获取真实的数据库 gameId
+        Long dbGameId = null;
         try {
-            gameService.saveGameResult(room, result);
-            log.info("Game result saved to DB for room {}", room.getId());
+            com.snake.entity.GameEntity saved = gameService.saveGameResult(room, result);
+            dbGameId = saved.getId();
+            log.info("Game result saved to DB: gameId={}, room={}", dbGameId, room.getId());
         } catch (Exception e) {
             log.error("Failed to persist game result for room {}: {}", room.getId(), e.getMessage(), e);
         }
 
+        // 使用真实的数据库 ID 发送 game_over 给每个玩家
+        final String realGameId = dbGameId != null ? String.valueOf(dbGameId) : result.gameId();
         for (Player player : room.getPlayers().values()) {
             GameResult decorated = decorateResultForPlayer(result, player.getId());
-            send(player.getSession(), "game_over", decorated);
+            GameResult withRealId = new GameResult(realGameId, decorated.duration(), decorated.rankings(), decorated.gameMode());
+            send(player.getSession(), "game_over", withRealId);
         }
     }
 

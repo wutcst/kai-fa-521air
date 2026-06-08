@@ -263,6 +263,10 @@ const startCount = ref(3)
 /** 集中触发游戏结束逻辑，防重复执行 */
 function triggerGameOver(data) {
   if (isGameOver.value) {
+    // 即使已标记结束，仍用真实 gameId 更新 sessionStorage（覆盖 fallback 假 ID）
+    if (data?.gameId) {
+      updateSessionGameId(data.gameId)
+    }
     console.log('[GameView] triggerGameOver skipped: already game over')
     return
   }
@@ -280,6 +284,21 @@ function triggerGameOver(data) {
   }
   sessionStorage.setItem('game_result', JSON.stringify(resultData))
   console.log('[GameView] game_result saved to sessionStorage:', resultData)
+}
+
+/** 用真实 gameId 更新 sessionStorage 中的 game_result */
+function updateSessionGameId(realGameId) {
+  try {
+    const raw = sessionStorage.getItem('game_result')
+    if (raw) {
+      const data = JSON.parse(raw)
+      if (data.gameId !== realGameId) {
+        data.gameId = realGameId
+        sessionStorage.setItem('game_result', JSON.stringify(data))
+        console.log('[GameView] game_result gameId updated to:', realGameId)
+      }
+    }
+  } catch {}
 }
 
 function handleGameEvent(type, data) {
@@ -415,14 +434,6 @@ function handleGameState(state) {
   if (state.gameStatus === 'playing' || state.gameStatus === 'finished') {
     if (!isRunning.value) console.log('[GameView] Starting game loop')
     isRunning.value = true
-  }
-  // 当 game_status 为 finished 时，作为 fallback 触发游戏结束覆盖层
-  // （防止 game_over WebSocket 消息因时序/连接问题未到达前端）
-  if (state.gameStatus === 'finished') {
-    triggerGameOver({
-      rankings: state.scoreBoard || [],
-      gameMode: gameMode.value
-    })
   }
 }
 

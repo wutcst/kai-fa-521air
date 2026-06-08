@@ -70,7 +70,7 @@
       </div>
 
       <!-- 个人数据 -->
-      <div class="personal-card" v-if="myData">
+      <div class="personal-card" v-if="myData && isOwner">
         <h4>📋 你的本局数据</h4>
         <div class="data-grid">
           <div class="data-item">
@@ -96,35 +96,102 @@
         </div>
       </div>
 
-      <!-- 按钮 -->
-      <div class="action-buttons">
+      <!-- 按钮：仅对局玩家显示操作按钮 -->
+      <div class="action-buttons" v-if="isOwner">
         <el-button size="large" @click="$router.push('/lobby')">🏠 返回大厅</el-button>
         <el-button type="primary" size="large" @click="playAgain">🔄 再来一局</el-button>
-        <el-button size="large" @click="shareResult" :icon="Share" plain>分享结果</el-button>
+        <el-button size="large" @click="openShareDialog" :icon="Share" plain>分享结果</el-button>
+      </div>
+
+      <!-- 分享链接访问者：仅显示分享按钮 -->
+      <div class="action-buttons" v-else>
+        <el-button size="large" @click="openShareDialog" :icon="Share" plain>分享此战绩</el-button>
+      </div>
+
+      <!-- 来源提示 -->
+      <div class="shared-notice" v-if="!isOwner">
+        <span>📤 此战绩由玩家分享</span>
       </div>
     </div>
 
+    <div v-else-if="loading" class="no-data">
+      <el-empty description="正在加载战绩..." :image-size="100" />
+    </div>
+
     <div v-else class="no-data">
-      <el-empty description="暂无结算数据">
-        <el-button type="primary" @click="$router.push('/lobby')">返回大厅</el-button>
+      <el-empty :description="loadError || '暂无结算数据'" :image-size="100">
+        <el-button v-if="isOwner" type="primary" @click="$router.push('/lobby')">返回大厅</el-button>
       </el-empty>
     </div>
+
+    <!-- 分享弹窗 -->
+    <el-dialog v-model="showShareDialog" title="📤 分享战绩" width="440px" center :close-on-click-modal="true">
+      <div class="share-content">
+        <!-- 战绩摘要 -->
+        <div class="share-preview">
+          <div class="share-game-mode">{{ isSingle ? '🧘 单人无尽' : '🏆 多人对战' }}</div>
+          <div class="share-my-line" v-if="myData">
+            <template v-if="!isSingle">排名 <strong>#{{ myRank }}</strong> · </template>
+            <strong>{{ myData.score }} 分</strong>
+            <template v-if="!isSingle"> · ⚔ {{ myData.kills || 0 }} 击杀</template>
+            <template v-if="myData.length"> · 🐍 长度 {{ myData.length }}</template>
+          </div>
+          <div class="share-game-id">对局ID：{{ resultData.gameId }}</div>
+        </div>
+
+        <!-- 复制链接 -->
+        <div class="share-action">
+          <div class="share-label">🔗 分享链接</div>
+          <div class="share-input-row">
+            <el-input :model-value="shareLink" readonly size="small" class="share-link-input" />
+            <el-button type="primary" size="small" @click="copyLink" :icon="copyLinkIcon">
+              {{ linkCopied ? '已复制' : '复制' }}
+            </el-button>
+          </div>
+        </div>
+
+        <!-- 复制文字 -->
+        <div class="share-action">
+          <div class="share-label">📝 分享文字</div>
+          <div class="share-text-preview">{{ shareText }}</div>
+          <el-button size="small" @click="copyText" :icon="copyTextIcon" style="margin-top:6px">
+            {{ textCopied ? '已复制' : '复制文字' }}
+          </el-button>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { UserFilled, Share } from '@element-plus/icons-vue'
+import { UserFilled, Share, CopyDocument, Check } from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user'
+import { getGameResultApi } from '@/api/game'
 
 const router = useRouter()
+const route = useRoute()
+const userStore = useUserStore()
 
 const resultData = ref(null)
 const rankings = computed(() => resultData.value?.rankings || [])
 const visibleRankings = ref([])
 const showConfetti = ref(false)
 const isSingle = computed(() => resultData.value?.gameMode === 'single')
+
+/** 是否为本局玩家（本人刚打完）：sessionStorage 中 gameId 与 URL 一致 */
+const isOwner = computed(() => {
+  try {
+    const raw = sessionStorage.getItem('game_result')
+    if (!raw) return false
+    const cached = JSON.parse(raw)
+    return String(cached.gameId) === String(route.params.gameId)
+  } catch {
+    return false
+  }
+})
 
 const myData = computed(() => rankings.value.find(r => r.isMe))
 const myRank = computed(() => rankings.value.findIndex(r => r.isMe) + 1)
@@ -148,26 +215,72 @@ function revealRankings() {
   }, 400)
 }
 
-function loadResult() {
+const loading = ref(false)
+const loadError = ref('')
+
+async function loadResult() {
+  const gameId = route.params.gameId
+
+  // 1. 优先使用当前标签页 sessionStorage 中的对局数据（本人刚打完）
   const raw = sessionStorage.getItem('game_result')
   if (raw) {
-    try { resultData.value = JSON.parse(raw); return } catch {}
+    try {
+      const cached = JSON.parse(raw)
+      // 确保缓存的 gameId 与 URL 中的一致
+      if (String(cached.gameId) === String(gameId) && cached.rankings?.length) {
+        resultData.value = cached
+        return
+      }
+    } catch {}
   }
-  resultData.value = generateMockResult()
+
+  // 2. 从后端 API 获取真实游戏数据
+  if (gameId && gameId !== 'latest') {
+    loading.value = true
+    try {
+      const detail = await getGameResultApi(gameId)
+      resultData.value = transformGameDetail(detail)
+      return
+    } catch (e) {
+      console.error('加载游戏结果失败:', e)
+      loadError.value = '游戏记录不存在或已过期'
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // 3. 没有任何数据时显示空状态
+  if (!loadError.value) {
+    loadError.value = '暂无结算数据'
+  }
 }
 
-function generateMockResult() {
-  const names = ['闪电蛇', '贪吃大王', '急速先锋', '无敌蛇王', '我']
-  const rankings = names.map((n, i) => ({
-    id: 'mock_'+i, nickname: n,
-    score: Math.floor(Math.random()*800)+200+(4-i)*150,
-    kills: Math.floor(Math.random()*5),
-    length: Math.floor(Math.random()*30)+10,
-    isAlive: i<3, survivalTime: Math.floor(Math.random()*200)+100,
-    isMe: n==='我'
+/**
+ * 将后端 /api/games/{id} 返回格式转换为前端结算页期望格式
+ * 后端: { id, gameMode, duration, players: [{ userId, score, kills, snakeLength, survivalTime, isAlive, isBot, rank, nickname }] }
+ * 前端: { gameId, gameMode, duration, rankings: [{ id, nickname, score, kills, length, survivalTime, isAlive, isMe }] }
+ */
+function transformGameDetail(detail) {
+  if (!detail) return null
+
+  const currentId = String(userStore.userInfo.id || '')
+  const rankings = (detail.players || []).map(p => ({
+    id: String(p.userId || ''),
+    nickname: p.nickname || p.userId || '?',
+    score: p.score || 0,
+    kills: p.kills || 0,
+    length: p.snakeLength || 0,
+    survivalTime: p.survivalTime || 0,
+    isAlive: p.isAlive !== false,
+    isMe: String(p.userId) === currentId
   }))
-  rankings.sort((a,b) => b.score - a.score)
-  return { gameId: 'game_'+Date.now(), duration: 300, rankings, gameMode: 'multi' }
+
+  return {
+    gameId: String(detail.id || ''),
+    gameMode: detail.gameMode || 'multi',
+    duration: detail.duration || 0,
+    rankings
+  }
 }
 
 function formatSurvival(s) {
@@ -187,7 +300,89 @@ function getParticleStyle(i) {
 function playAgain() {
   router.push('/lobby')
 }
-function shareResult() { ElMessage.success('已复制分享链接！') }
+
+// ---- 分享功能 ----
+const showShareDialog = ref(false)
+const linkCopied = ref(false)
+const textCopied = ref(false)
+const copyLinkIcon = computed(() => linkCopied.value ? Check : CopyDocument)
+const copyTextIcon = computed(() => textCopied.value ? Check : CopyDocument)
+
+/** 分享链接 */
+const shareLink = computed(() => {
+  const gameId = resultData.value?.gameId || 'latest'
+  return `${window.location.origin}/result/${gameId}`
+})
+
+/** 分享文字 */
+const shareText = computed(() => {
+  const mode = isSingle.value ? '单人无尽' : '多人对战'
+  const my = myData.value
+  if (!my) return `我刚刚在贪吃蛇大作战中完成了一局${mode}！快来挑战我吧！`
+  const parts = [`我刚刚在贪吃蛇大作战（${mode}）中`]
+  if (!isSingle.value) parts.push(`获得了第 ${myRank.value} 名！`)
+  parts.push(`得分 ${my.score} 分`)
+  if (!isSingle.value) parts.push(`⚔ ${my.kills || 0} 击杀`)
+  parts.push(`🐍 长度 ${my.length || 0}`)
+  parts.push('快来挑战我吧！')
+  return parts.join(' · ')
+})
+
+function openShareDialog() {
+  linkCopied.value = false
+  textCopied.value = false
+  showShareDialog.value = true
+}
+
+async function copyLink() {
+  try {
+    await navigator.clipboard.writeText(shareLink.value)
+    linkCopied.value = true
+    ElMessage.success('链接已复制到剪贴板！')
+    setTimeout(() => { linkCopied.value = false }, 3000)
+  } catch (e) {
+    // 回退方案：使用传统方法
+    fallbackCopy(shareLink.value, () => {
+      linkCopied.value = true
+      ElMessage.success('链接已复制到剪贴板！')
+      setTimeout(() => { linkCopied.value = false }, 3000)
+    })
+  }
+}
+
+async function copyText() {
+  try {
+    await navigator.clipboard.writeText(shareText.value)
+    textCopied.value = true
+    ElMessage.success('战绩文字已复制！')
+    setTimeout(() => { textCopied.value = false }, 3000)
+  } catch (e) {
+    fallbackCopy(shareText.value, () => {
+      textCopied.value = true
+      ElMessage.success('战绩文字已复制！')
+      setTimeout(() => { textCopied.value = false }, 3000)
+    })
+  }
+}
+
+/** 回退复制方案（兼容非 HTTPS 或不支持 clipboard API 的环境） */
+function fallbackCopy(text, callback) {
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.style.position = 'fixed'
+  textarea.style.left = '-9999px'
+  textarea.style.top = '-9999px'
+  document.body.appendChild(textarea)
+  textarea.focus()
+  textarea.select()
+  try {
+    document.execCommand('copy')
+    callback?.()
+  } catch (e) {
+    ElMessage.error('复制失败，请手动复制')
+  }
+  document.body.removeChild(textarea)
+}
 
 onMounted(() => {
   loadResult()
@@ -278,8 +473,76 @@ onMounted(() => {
 
 .action-buttons { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; margin-top: 4px; }
 
+.shared-notice {
+  text-align: center;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 .rank-reveal-enter-active { animation: slideRight 0.4s ease-out; }
 @keyframes slideRight { from{transform:translateX(-30px);opacity:0} to{transform:translateX(0);opacity:1} }
 
 .no-data { position: relative; z-index: 2; }
+
+/* ---- 分享弹窗 ---- */
+.share-content {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.share-preview {
+  background: linear-gradient(135deg, #e8f5e9, #f1f8e9);
+  border: 1px solid #c8e6c9;
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+}
+.share-game-mode {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.share-my-line {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  margin-bottom: 4px;
+}
+.share-my-line strong {
+  color: #2e7d32;
+}
+.share-game-id {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.share-action {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 14px;
+}
+.share-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+.share-input-row {
+  display: flex;
+  gap: 8px;
+}
+.share-link-input {
+  flex: 1;
+}
+.share-text-preview {
+  background: var(--bg-main);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  word-break: break-all;
+}
 </style>

@@ -38,7 +38,7 @@ const routes = [
     path: '/result/:gameId',
     name: 'Result',
     component: () => import('@/views/ResultView.vue'),
-    meta: { title: '结算页面', requiresAuth: true }
+    meta: { title: '结算页面' }
   },
   {
     path: '/history',

@@ -89,7 +89,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/rooms/list").permitAll()
                 .requestMatchers("/api/rooms/online-count").permitAll()
-                .requestMatchers("/api/games").permitAll()
+                .requestMatchers("/api/games/**").permitAll()
                 .requestMatchers("/api/ranking").permitAll()
                 .requestMatchers("/api/ranking/**").permitAll()
                 .requestMatchers("/api/matchmaking/**").permitAll()
