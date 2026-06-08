@@ -47,14 +47,6 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                 session,
                 objectMapper.convertValue(wsMessage.data(), RoomManager.DirectionRequest.class)
             );
-            case "use_item" -> roomManager.useItem(
-                session,
-                objectMapper.convertValue(wsMessage.data(), RoomManager.ItemRequest.class)
-            );
-            case "speed_boost" -> roomManager.boostSpeed(
-                session,
-                objectMapper.convertValue(wsMessage.data(), RoomManager.SpeedBoostRequest.class)
-            );
             case "chat_message" -> roomManager.chat(
                 session,
                 objectMapper.convertValue(wsMessage.data(), RoomManager.ChatRequest.class)

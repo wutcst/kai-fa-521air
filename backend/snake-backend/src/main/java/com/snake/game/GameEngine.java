@@ -337,19 +337,9 @@ public class GameEngine {
         }
     }
 
-    public void useItem(String playerId, String itemType) {
-        if (playerId == null || itemType == null) {
-            return;
-        }
-        synchronized (lock) {
-            Snake snake = snakes.get(playerId);
-            if (snake == null || !snake.isAlive) {
-                return;
-            }
-            applyItem(snake, itemType);
-        }
-    }
-
+    /**
+     * 淘汰玩家（断线或退出时调用）
+     */
     public void eliminatePlayer(String playerId, String reason) {
         if (playerId == null) {
             return;

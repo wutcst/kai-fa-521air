@@ -42,6 +42,11 @@
         <span>🐍 {{ myLength }}</span>
       </div>
 
+      <!-- 当前道具效果 -->
+      <div class="hud-item items" v-if="activeItems.length">
+        <span v-for="item in activeItems" :key="item" class="active-item-tag">{{ item }}</span>
+      </div>
+
       <!-- 连接状态 -->
       <div class="hud-item connection">
         <span :class="['status-dot', isConnected ? 'green' : 'red']"></span>
@@ -73,19 +78,11 @@
       </aside>
     </div>
 
-    <!-- 底部道具栏 -->
+    <!-- 底部控制提示 -->
     <footer class="game-footer">
-      <div class="item-bar">
-        <div v-for="item in itemSlots" :key="item.type" :class="['item-slot', { active: item.active }]">
-          <span class="item-icon">{{ item.icon }}</span>
-          <span class="item-name">{{ item.label }}</span>
-          <span class="item-key">{{ item.key }}</span>
-        </div>
-      </div>
       <div class="control-hints">
-        <span>⬆⬇⬅➡/WASD 移动</span>
-        <span>空格 加速</span>
-        <span>1/2/3 道具</span>
+        <span>⬆⬇⬅➡ / WASD 移动</span>
+        <span>道具在地图上拾取 ⚡🛡🧲</span>
       </div>
     </footer>
 
@@ -228,14 +225,15 @@ const scoreBoardData = computed(() => {
   return board.map((p, i) => ({ ...p, rank: i + 1 }))
 })
 
-// ---- 道具栏 ----
-const itemSlots = computed(() => {
+// ---- 道具状态（从蛇数据读取，仅用于HUD显示）----
+const activeItems = computed(() => {
   const s = mySnakeData.value
-  return [
-    { type: 'speed', icon: '⚡', label: '加速', key: '1', active: s?.speedBoost > 0 },
-    { type: 'shield', icon: '🛡', label: '护盾', key: '2', active: s?.shield === true },
-    { type: 'magnet', icon: '🧲', label: '磁铁', key: '3', active: s?.magnet > 0 }
-  ]
+  if (!s) return []
+  const items = []
+  if (s.speedBoost > 0) items.push('⚡加速')
+  if (s.shield) items.push('🛡护盾')
+  if (s.magnet > 0) items.push('🧲磁铁')
+  return items
 })
 
 // ---- 聊天 ----
@@ -341,43 +339,7 @@ function handleKeyDown(e) {
     }
     return
   }
-  if (e.key === ' ') {
-    e.preventDefault()
-    if (USE_MOCK && mockGameServer) {
-      mockGameServer.useItem('speed')
-    } else {
-      wsStore.send('speed_boost', { roomId: roomSeed.roomId || route.params.roomId, playerId: getPlayerId() })
-    }
-    addToast('⚡ 加速！', 'item')
-    return
-  }
-  if (e.key === '1') {
-    e.preventDefault()
-    if (USE_MOCK && mockGameServer) {
-      mockGameServer.useItem('speed')
-    } else {
-      wsStore.send('use_item', { roomId: roomSeed.roomId || route.params.roomId, playerId: getPlayerId(), itemType: 'speed' })
-    }
-    addToast('⚡ 加速道具！', 'item')
-  }
-  if (e.key === '2') {
-    e.preventDefault()
-    if (USE_MOCK && mockGameServer) {
-      mockGameServer.useItem('shield')
-    } else {
-      wsStore.send('use_item', { roomId: roomSeed.roomId || route.params.roomId, playerId: getPlayerId(), itemType: 'shield' })
-    }
-    addToast('🛡 护盾！', 'item')
-  }
-  if (e.key === '3') {
-    e.preventDefault()
-    if (USE_MOCK && mockGameServer) {
-      mockGameServer.useItem('magnet')
-    } else {
-      wsStore.send('use_item', { roomId: roomSeed.roomId || route.params.roomId, playerId: getPlayerId(), itemType: 'magnet' })
-    }
-    addToast('🧲 磁铁！', 'item')
-  }
+  // 道具只能从地图上拾取，不再通过键盘快捷键激活
 }
 
 function formatTime(seconds) {
@@ -606,6 +568,15 @@ onUnmounted(() => {
 .status-dot.red { background: #ef5350; }
 .status-text { font-size: 11px; color: var(--text-muted); }
 .exit-btn { margin-left: auto; font-size: 12px; }
+.active-item-tag {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  color: var(--primary-dark);
+  font-weight: 600;
+}
 
 /* 主体 */
 .game-body { flex: 1; display: flex; overflow: hidden; }
@@ -618,25 +589,13 @@ onUnmounted(() => {
 
 /* 底部 */
 .game-footer {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; justify-content: center;
   padding: 8px 20px;
   background: rgba(255,255,255,0.95);
   border-top: 1px solid #dcedc8;
   flex-shrink: 0; z-index: 10;
 }
-.item-bar { display: flex; gap: 10px; }
-.item-slot {
-  display: flex; align-items: center; gap: 6px;
-  padding: 5px 14px; border-radius: 8px;
-  background: #f5f9f0; border: 1px solid #dcedc8;
-  font-size: 13px; opacity: 0.5; transition: all 0.3s;
-}
-.item-slot.active { opacity: 1; border-color: #66bb6a; background: #e8f5e9; }
-.item-key {
-  font-size: 10px; color: var(--text-muted);
-  background: #dcedc8; padding: 1px 5px; border-radius: 3px;
-}
-.control-hints { display: flex; gap: 16px; font-size: 11px; color: var(--text-muted); }
+.control-hints { display: flex; gap: 20px; font-size: 12px; color: var(--text-secondary); }
 
 /* 聊天 */
 .chat-corner { position: absolute; bottom: 56px; left: 12px; z-index: 20; }

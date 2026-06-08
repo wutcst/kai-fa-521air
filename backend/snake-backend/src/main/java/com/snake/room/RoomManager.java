@@ -279,30 +279,6 @@ public class RoomManager {
         room.getEngine().setDirection(ref.playerId(), GameEngine.Direction.from(request.direction()));
     }
 
-    public void useItem(WebSocketSession session, ItemRequest request) {
-        SessionRef ref = getSessionRef(session, request == null ? null : request.roomId());
-        if (ref == null || request == null) {
-            return;
-        }
-        Room room = rooms.get(ref.roomId());
-        if (room == null || room.getEngine() == null) {
-            return;
-        }
-        room.getEngine().useItem(ref.playerId(), request.itemType());
-    }
-
-    public void boostSpeed(WebSocketSession session, SpeedBoostRequest request) {
-        SessionRef ref = getSessionRef(session, request == null ? null : request.roomId());
-        if (ref == null) {
-            return;
-        }
-        Room room = rooms.get(ref.roomId());
-        if (room == null || room.getEngine() == null) {
-            return;
-        }
-        room.getEngine().useItem(ref.playerId(), "speed");
-    }
-
     public void chat(WebSocketSession session, ChatRequest request) {
         SessionRef ref = getSessionRef(session, request == null ? null : request.roomId());
         if (ref == null || request == null || request.text() == null) {
