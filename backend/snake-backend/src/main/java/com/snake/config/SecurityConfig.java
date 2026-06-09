@@ -93,6 +93,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/ranking").permitAll()
                 .requestMatchers("/api/ranking/**").permitAll()
                 .requestMatchers("/api/matchmaking/**").permitAll()
+                // Swagger/OpenAPI 文档路径
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/v3/api-docs.yaml").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtFilter, AuthorizationFilter.class);

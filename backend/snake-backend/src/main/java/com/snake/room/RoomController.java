@@ -10,6 +10,12 @@ import com.snake.entity.SysUser;
 import com.snake.repository.RoomPlayerRepository;
 import com.snake.repository.RoomRepository;
 import com.snake.repository.SysUserRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -27,6 +33,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/rooms")
+@Tag(name = "04-房间管理", description = "房间列表、创建、加入、退出、更新设置、获取房间详情")
 public class RoomController {
 
     private static final Logger log = LoggerFactory.getLogger(RoomController.class);
@@ -49,6 +56,10 @@ public class RoomController {
      * 从数据库获取持久化房间，并与 RoomManager 中的实时房间合并
      */
     @GetMapping("/list")
+    @Operation(summary = "获取房间列表", description = "分页查询房间列表，支持按状态、关键字、游戏模式筛选。合并数据库持久化房间与 WebSocket 实时房间")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "成功返回房间列表")
+    })
     public RoomManager.RoomListResponse listRooms(
             @RequestParam(name = "page", defaultValue = "1") int page,
             @RequestParam(name = "size", defaultValue = "100") int size,
@@ -143,6 +154,11 @@ public class RoomController {
      * 获取在线人数
      */
     @GetMapping("/online-count")
+    @Operation(summary = "获取在线人数", description = "返回当前 WebSocket 在线用户数")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "成功返回在线人数",
+            content = @Content(examples = @ExampleObject(value = "{\"count\":42}")))
+    })
     public Map<String, Object> onlineCount() {
         return Map.of("count", roomManager.getOnlineCount());
     }
@@ -152,6 +168,12 @@ public class RoomController {
      * 同时持久化到数据库和 RoomManager
      */
     @PostMapping
+    @Operation(summary = "创建房间", description = "需要 JWT token，创建新房间并同时持久化到数据库和 RoomManager（WebSocket）")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "房间创建成功，返回房间详情"),
+        @ApiResponse(responseCode = "401", description = "未登录或用户不存在",
+            content = @Content(examples = @ExampleObject(value = "{\"message\":\"未登录\"}")))
+    })
     public ResponseEntity<?> createRoom(@RequestBody CreateRoomRequest request,
                                          Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
@@ -224,6 +246,17 @@ public class RoomController {
      * 加入房间
      */
     @PostMapping("/{roomId}/join")
+    @Operation(summary = "加入房间", description = "需要 JWT token，加入指定房间。有密码的房间需提供密码")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "成功加入房间",
+            content = @Content(examples = @ExampleObject(value = "{\"roomId\":\"room_xxx\",\"success\":true}"))),
+        @ApiResponse(responseCode = "400", description = "房间已满/已开始/密码错误/需要密码",
+            content = @Content(examples = @ExampleObject(value = "{\"message\":\"房间已满\"}"))),
+        @ApiResponse(responseCode = "401", description = "未登录",
+            content = @Content(examples = @ExampleObject(value = "{\"message\":\"未登录\"}"))),
+        @ApiResponse(responseCode = "404", description = "房间不存在",
+            content = @Content(examples = @ExampleObject(value = "{\"message\":\"房间不存在\"}")))
+    })
     public ResponseEntity<?> joinRoom(@PathVariable String roomId,
                                        @RequestBody(required = false) JoinRoomRequest request,
                                        Authentication authentication) {
@@ -287,6 +320,13 @@ public class RoomController {
      * 退出房间
      */
     @PostMapping("/{roomId}/leave")
+    @Operation(summary = "退出房间", description = "需要 JWT token，退出指定房间")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "成功退出房间",
+            content = @Content(examples = @ExampleObject(value = "{\"success\":true}"))),
+        @ApiResponse(responseCode = "401", description = "未登录",
+            content = @Content(examples = @ExampleObject(value = "{\"message\":\"未登录\"}")))
+    })
     public ResponseEntity<?> leaveRoom(@PathVariable String roomId,
                                         Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
@@ -307,6 +347,15 @@ public class RoomController {
      * 更新房间设置
      */
     @PutMapping("/{roomId}")
+    @Operation(summary = "更新房间设置", description = "需要 JWT token，更新房间名称、最大玩家数、游戏时长、密码等设置")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "更新成功",
+            content = @Content(examples = @ExampleObject(value = "{\"success\":true}"))),
+        @ApiResponse(responseCode = "401", description = "未登录",
+            content = @Content(examples = @ExampleObject(value = "{\"message\":\"未登录\"}"))),
+        @ApiResponse(responseCode = "404", description = "房间不存在",
+            content = @Content(examples = @ExampleObject(value = "{\"message\":\"房间不存在\"}")))
+    })
     public ResponseEntity<?> updateRoom(@PathVariable String roomId,
                                          @RequestBody Map<String, Object> settings,
                                          Authentication authentication) {
@@ -351,6 +400,12 @@ public class RoomController {
      * 获取房间详情
      */
     @GetMapping("/{roomId}")
+    @Operation(summary = "获取房间详情", description = "按房间ID查询房间详细信息，优先返回 RoomManager 实时数据，否则从数据库查询")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "成功返回房间详情"),
+        @ApiResponse(responseCode = "404", description = "房间不存在",
+            content = @Content(examples = @ExampleObject(value = "{\"message\":\"房间不存在\"}")))
+    })
     public ResponseEntity<?> getRoom(@PathVariable String roomId) {
         // 优先从 RoomManager 获取实时数据
         RoomManager.RoomSummary summary = findRoomSummary(roomId);

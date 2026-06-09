@@ -1,6 +1,12 @@
 package com.snake.controller;
 
 import com.snake.service.MatchmakingService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -16,6 +22,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/matchmaking")
+@Tag(name = "05-匹配管理", description = "快速匹配队列管理：加入/取消匹配、查询匹配状态")
 public class MatchmakingController {
 
     private static final Logger log = LoggerFactory.getLogger(MatchmakingController.class);
@@ -26,10 +33,14 @@ public class MatchmakingController {
         this.matchmakingService = matchmakingService;
     }
 
-    /**
-     * 加入匹配队列
-     */
     @PostMapping("/join")
+    @Operation(summary = "加入匹配队列", description = "需要 JWT token，将当前用户加入快速匹配队列，匹配成功时返回 roomId")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "成功加入队列（matched=false 表示等待中，matched=true 表示已匹配到房间）",
+            content = @Content(examples = @ExampleObject(value = "{\"matched\":false,\"message\":\"已加入匹配队列\",\"queueSize\":3}"))),
+        @ApiResponse(responseCode = "401", description = "未登录",
+            content = @Content(examples = @ExampleObject(value = "{\"message\":\"未登录\"}")))
+    })
     public ResponseEntity<?> joinQueue(Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -58,10 +69,14 @@ public class MatchmakingController {
         }
     }
 
-    /**
-     * 取消匹配
-     */
     @PostMapping("/cancel")
+    @Operation(summary = "取消匹配", description = "需要 JWT token，将当前用户从匹配队列中移除")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "已取消匹配",
+            content = @Content(examples = @ExampleObject(value = "{\"message\":\"已取消匹配\"}"))),
+        @ApiResponse(responseCode = "401", description = "未登录",
+            content = @Content(examples = @ExampleObject(value = "{\"message\":\"未登录\"}")))
+    })
     public ResponseEntity<?> cancelQueue(Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -73,12 +88,14 @@ public class MatchmakingController {
         return ResponseEntity.ok(Map.of("message", "已取消匹配"));
     }
 
-    /**
-     * 查询匹配状态（轮询用）
-     * 返回 matched: true + roomId 表示已匹配成功
-     * 返回 matched: false 表示仍在等待
-     */
     @GetMapping("/status")
+    @Operation(summary = "查询匹配状态", description = "轮询用。返回 matched: true + roomId 表示已匹配成功；matched: false 表示仍在等待队列中")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "成功返回匹配状态",
+            content = @Content(examples = @ExampleObject(value = "{\"matched\":false,\"inQueue\":true,\"queueSize\":3}"))),
+        @ApiResponse(responseCode = "401", description = "未登录",
+            content = @Content(examples = @ExampleObject(value = "{\"message\":\"未登录\"}")))
+    })
     public ResponseEntity<?> checkStatus(Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
