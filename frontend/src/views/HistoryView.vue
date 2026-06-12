@@ -60,7 +60,12 @@
 
     <!-- 筛选栏 -->
     <div class="filter-bar">
-      <el-select v-model="modeFilter" placeholder="游戏模式" style="width:150px" @change="handleFilterChange">
+      <el-select
+        v-model="modeFilter"
+        placeholder="游戏模式"
+        style="width: 150px"
+        @change="handleFilterChange"
+      >
         <el-option label="全部模式" value="all" />
         <el-option label="👥 多人对战" value="multi" />
         <el-option label="🧘 单人无尽" value="single" />
@@ -70,7 +75,11 @@
 
     <!-- 对战列表 -->
     <div class="history-table-section" v-loading="listLoading">
-      <el-empty v-if="!listLoading && historyList.length === 0" description="暂无对战记录，快去开始游戏吧！" :image-size="120">
+      <el-empty
+        v-if="!listLoading && historyList.length === 0"
+        description="暂无对战记录，快去开始游戏吧！"
+        :image-size="120"
+      >
         <el-button type="primary" @click="goBack">前往大厅</el-button>
       </el-empty>
 
@@ -91,18 +100,30 @@
                   <div class="expand-game-info">
                     <span><strong>对局ID：</strong>{{ row._detail.id }}</span>
                     <span><strong>房间ID：</strong>{{ row._detail.roomId || '-' }}</span>
-                    <span><strong>模式：</strong>{{ row._detail.gameMode === 'single' ? '🧘 单人无尽' : '👥 多人对战' }}</span>
+                    <span
+                      ><strong>模式：</strong
+                      >{{ row._detail.gameMode === 'single' ? '🧘 单人无尽' : '👥 多人对战' }}</span
+                    >
                     <span><strong>时长：</strong>{{ formatDuration(row._detail.duration) }}</span>
                     <span><strong>人数：</strong>{{ row._detail.playerCount }} 人</span>
                     <span><strong>时间：</strong>{{ formatTime(row._detail.createdAt) }}</span>
                   </div>
                   <!-- 排名列表 -->
-                  <div class="expand-rankings" v-if="row._detail.players && row._detail.players.length">
+                  <div
+                    class="expand-rankings"
+                    v-if="row._detail.players && row._detail.players.length"
+                  >
                     <h5>🏅 本局排名</h5>
                     <div
                       v-for="(p, idx) in row._detail.players"
                       :key="idx"
-                      :class="['rank-row', { 'is-me': String(p.userId) === String(currentUserId), 'is-top': idx === 0 }]"
+                      :class="[
+                        'rank-row',
+                        {
+                          'is-me': String(p.userId) === String(currentUserId),
+                          'is-top': idx === 0,
+                        },
+                      ]"
                     >
                       <span class="rank-pos">
                         <template v-if="idx === 0">🥇</template>
@@ -112,10 +133,17 @@
                       </span>
                       <span class="rank-nickname">
                         {{ p.nickname || p.userId }}
-                        <el-tag v-if="String(p.userId) === String(currentUserId)" type="success" size="small">我</el-tag>
+                        <el-tag
+                          v-if="String(p.userId) === String(currentUserId)"
+                          type="success"
+                          size="small"
+                          >我</el-tag
+                        >
                         <el-tag v-if="p.isBot" type="info" size="small">🤖 Bot</el-tag>
                       </span>
-                      <span class="rank-detail">⚔ {{ p.kills }} 击杀 | 🐍 长度 {{ p.snakeLength }}</span>
+                      <span class="rank-detail"
+                        >⚔ {{ p.kills }} 击杀 | 🐍 长度 {{ p.snakeLength }}</span
+                      >
                       <span class="rank-score">{{ p.score }} 分</span>
                     </div>
                   </div>
@@ -127,7 +155,11 @@
           <el-table-column prop="id" label="对局ID" width="100" />
           <el-table-column label="模式" width="120">
             <template #default="{ row }">
-              <el-tag :type="row.gameMode === 'single' ? 'success' : 'primary'" size="small" effect="plain">
+              <el-tag
+                :type="row.gameMode === 'single' ? 'success' : 'primary'"
+                size="small"
+                effect="plain"
+              >
                 {{ row.gameMode === 'single' ? '🧘 单人' : '👥 多人' }}
               </el-tag>
             </template>
@@ -186,7 +218,13 @@
     </div>
 
     <!-- 详情弹窗 -->
-    <el-dialog v-model="detailVisible" title="📋 对局详情" width="600px" center :close-on-click-modal="true">
+    <el-dialog
+      v-model="detailVisible"
+      title="📋 对局详情"
+      width="600px"
+      center
+      :close-on-click-modal="true"
+    >
       <div v-if="detailData" v-loading="detailLoading" class="detail-dialog-content">
         <div class="detail-info-row">
           <div class="detail-info-item">
@@ -195,7 +233,9 @@
           </div>
           <div class="detail-info-item">
             <span class="d-label">游戏模式</span>
-            <span class="d-value">{{ detailData.gameMode === 'single' ? '🧘 单人无尽' : '👥 多人对战' }}</span>
+            <span class="d-value">{{
+              detailData.gameMode === 'single' ? '🧘 单人无尽' : '👥 多人对战'
+            }}</span>
           </div>
           <div class="detail-info-item">
             <span class="d-label">对局时长</span>
@@ -219,7 +259,10 @@
           <div
             v-for="(p, idx) in detailData.players"
             :key="idx"
-            :class="['d-rank-row', { 'is-me': String(p.userId) === String(currentUserId), 'is-champion': idx === 0 }]"
+            :class="[
+              'd-rank-row',
+              { 'is-me': String(p.userId) === String(currentUserId), 'is-champion': idx === 0 },
+            ]"
           >
             <span class="d-rank-num">
               <template v-if="idx === 0">🥇</template>
@@ -229,10 +272,13 @@
             </span>
             <span class="d-rank-name">
               {{ p.nickname || p.userId }}
-              <el-tag v-if="String(p.userId) === String(currentUserId)" type="success" size="small">我</el-tag>
+              <el-tag v-if="String(p.userId) === String(currentUserId)" type="success" size="small"
+                >我</el-tag
+              >
             </span>
             <span class="d-rank-stats">
-              ⚔ {{ p.kills }} 击杀 · 🐍 长度 {{ p.snakeLength }} · ⏱ {{ formatSurvival(p.survivalTime) }}
+              ⚔ {{ p.kills }} 击杀 · 🐍 长度 {{ p.snakeLength }} · ⏱
+              {{ formatSurvival(p.survivalTime) }}
             </span>
             <span class="d-rank-score">{{ p.score }} 分</span>
           </div>
@@ -269,7 +315,7 @@ const stats = ref({
   bestScore: 0,
   avgScore: 0,
   totalKills: 0,
-  avgRank: '-'
+  avgRank: '-',
 })
 
 const historyList = ref([])
@@ -301,7 +347,7 @@ async function fetchStats() {
       bestScore: data.bestScore || 0,
       avgScore: data.avgScore || 0,
       totalKills: data.totalKills || 0,
-      avgRank: data.avgRank || '-'
+      avgRank: data.avgRank || '-',
     }
   } catch (e) {
     console.error('获取统计失败:', e)
@@ -316,10 +362,10 @@ async function fetchHistory() {
   listLoading.value = true
   try {
     const data = await getMyHistoryApi(currentPage.value, pageSize.value)
-    historyList.value = (data.list || []).map(item => ({
+    historyList.value = (data.list || []).map((item) => ({
       ...item,
       _detail: null,
-      _loadingDetail: false
+      _loadingDetail: false,
     }))
     total.value = data.total || 0
   } catch (e) {
@@ -405,7 +451,7 @@ function formatDuration(seconds) {
 function formatTime(dateStr) {
   if (!dateStr) return '-'
   const d = new Date(dateStr)
-  const pad = n => String(n).padStart(2, '0')
+  const pad = (n) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
@@ -485,7 +531,9 @@ function getRowClass({ row }) {
   padding: 16px 12px;
   text-align: center;
   box-shadow: var(--shadow-sm);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -495,13 +543,32 @@ function getRowClass({ row }) {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
-.stat-icon { font-size: 22px; }
-.stat-val { font-size: 22px; font-weight: 700; color: var(--text-primary); }
-.stat-label { font-size: 12px; color: var(--text-secondary); }
-.stat-card.highlight-gold { border-color: #ffd54f; background: #fffde7; }
-.stat-card.highlight-gold .stat-val { color: #f9a825; }
-.stat-card.highlight-green { border-color: #a5d6a7; background: #e8f5e9; }
-.stat-card.highlight-green .stat-val { color: var(--primary-dark); }
+.stat-icon {
+  font-size: 22px;
+}
+.stat-val {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.stat-card.highlight-gold {
+  border-color: #ffd54f;
+  background: #fffde7;
+}
+.stat-card.highlight-gold .stat-val {
+  color: #f9a825;
+}
+.stat-card.highlight-green {
+  border-color: #a5d6a7;
+  background: #e8f5e9;
+}
+.stat-card.highlight-green .stat-val {
+  color: var(--primary-dark);
+}
 
 /* 筛选栏 */
 .filter-bar {
@@ -548,18 +615,51 @@ function getRowClass({ row }) {
   background: var(--bg-card);
   font-size: 13px;
 }
-.rank-row.is-me { background: #e8f5e9; border-left: 3px solid var(--primary-color); }
-.rank-row.is-top { background: #fffde7; }
-.rank-pos { font-size: 18px; width: 32px; text-align: center; }
-.rank-nickname { flex: 1; display: flex; align-items: center; gap: 6px; font-weight: 500; }
-.rank-detail { color: var(--text-secondary); font-size: 12px; }
-.rank-score { font-weight: 700; color: var(--primary-dark); font-size: 14px; }
+.rank-row.is-me {
+  background: #e8f5e9;
+  border-left: 3px solid var(--primary-color);
+}
+.rank-row.is-top {
+  background: #fffde7;
+}
+.rank-pos {
+  font-size: 18px;
+  width: 32px;
+  text-align: center;
+}
+.rank-nickname {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+.rank-detail {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.rank-score {
+  font-weight: 700;
+  color: var(--primary-dark);
+  font-size: 14px;
+}
 
 /* 排名样式 */
-.rank-1 { color: #f9a825; font-weight: 700; }
-.rank-2 { color: #78909c; font-weight: 700; }
-.rank-3 { color: #e65100; font-weight: 700; }
-.rank-other { color: var(--text-secondary); }
+.rank-1 {
+  color: #f9a825;
+  font-weight: 700;
+}
+.rank-2 {
+  color: #78909c;
+  font-weight: 700;
+}
+.rank-3 {
+  color: #e65100;
+  font-weight: 700;
+}
+.rank-other {
+  color: var(--text-secondary);
+}
 
 /* 分页 */
 .pagination-wrapper {
@@ -586,8 +686,15 @@ function getRowClass({ row }) {
   background: #f9fdf7;
   border-radius: 6px;
 }
-.d-label { font-size: 12px; color: var(--text-muted); }
-.d-value { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.d-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.d-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
 .detail-rankings h5 {
   font-size: 14px;
   margin-bottom: 8px;
@@ -603,14 +710,37 @@ function getRowClass({ row }) {
   background: var(--bg-main);
   font-size: 13px;
 }
-.d-rank-row.is-me { background: #e8f5e9; border-left: 3px solid var(--primary-color); }
-.d-rank-row.is-champion { background: #fffde7; }
-.d-rank-num { font-size: 18px; width: 28px; }
-.d-rank-name { flex: 1; display: flex; align-items: center; gap: 6px; }
-.d-rank-stats { color: var(--text-secondary); font-size: 12px; }
-.d-rank-score { font-weight: 700; color: var(--primary-dark); }
+.d-rank-row.is-me {
+  background: #e8f5e9;
+  border-left: 3px solid var(--primary-color);
+}
+.d-rank-row.is-champion {
+  background: #fffde7;
+}
+.d-rank-num {
+  font-size: 18px;
+  width: 28px;
+}
+.d-rank-name {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.d-rank-stats {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.d-rank-score {
+  font-weight: 700;
+  color: var(--primary-dark);
+}
 
 /* :deep 用于渗透 Element Plus 样式 */
-:deep(.winner-row) { background: #fffde7 !important; }
-:deep(.el-table__expanded-cell) { padding: 0 !important; }
+:deep(.winner-row) {
+  background: #fffde7 !important;
+}
+:deep(.el-table__expanded-cell) {
+  padding: 0 !important;
+}
 </style>

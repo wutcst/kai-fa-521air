@@ -94,12 +94,17 @@
     <!-- 事件弹幕 -->
     <div class="event-toasts">
       <TransitionGroup name="toast">
-        <div v-for="evt in activeToasts" :key="evt.id" :class="['event-toast', evt.type]">{{ evt.text }}</div>
+        <div v-for="evt in activeToasts" :key="evt.id" :class="['event-toast', evt.type]">
+          {{ evt.text }}
+        </div>
       </TransitionGroup>
     </div>
 
     <!-- 玩家死亡遮罩（多人模式中死亡但游戏未结束） -->
-    <div v-if="mySnakeDead && !isGameOver && gameMode === 'multi' && showDeathOverlay" class="death-overlay">
+    <div
+      v-if="mySnakeDead && !isGameOver && gameMode === 'multi' && showDeathOverlay"
+      class="death-overlay"
+    >
       <div class="death-card">
         <h2>💀 你已被淘汰</h2>
         <p>游戏仍在进行中，你可以观战或退出</p>
@@ -182,7 +187,7 @@ const isGameOver = ref(false)
 const gameState = ref({})
 const mapW = ref(60)
 const mapH = ref(60)
-const isConnected = computed(() => USE_MOCK ? true : wsStore.isConnected)
+const isConnected = computed(() => (USE_MOCK ? true : wsStore.isConnected))
 
 // ---- HUD ----
 const mySnakeData = computed(() => {
@@ -216,7 +221,7 @@ const isTimeWarning = computed(() => remainingTime.value <= 30 && remainingTime.
 
 const myRank = computed(() => {
   const board = gameState.value?.scoreBoard || []
-  const idx = board.findIndex(p => p.isMe)
+  const idx = board.findIndex((p) => p.isMe)
   return idx >= 0 ? idx + 1 : '?'
 })
 
@@ -243,7 +248,7 @@ function onChatSend(text) {
   wsStore.send('chat_message', {
     roomId: roomSeed.roomId || route.params.roomId,
     playerId: getPlayerId(),
-    text
+    text,
   })
 }
 
@@ -253,7 +258,9 @@ let toastId = 0
 function addToast(text, type = 'info') {
   const id = ++toastId
   activeToasts.value.push({ id, text, type })
-  setTimeout(() => { activeToasts.value = activeToasts.value.filter(t => t.id !== id) }, 3000)
+  setTimeout(() => {
+    activeToasts.value = activeToasts.value.filter((t) => t.id !== id)
+  }, 3000)
 }
 
 // ---- 倒计时 ----
@@ -277,10 +284,10 @@ function triggerGameOver(data) {
 
   const rankings = data?.rankings || []
   const resultData = {
-    gameId: data?.gameId || ('game_' + Date.now()),
+    gameId: data?.gameId || 'game_' + Date.now(),
     rankings: rankings,
-    myRank: rankings.findIndex(r => r.isMe) + 1,
-    gameMode: data?.gameMode || gameMode.value
+    myRank: rankings.findIndex((r) => r.isMe) + 1,
+    gameMode: data?.gameMode || gameMode.value,
   }
   sessionStorage.setItem('game_result', JSON.stringify(resultData))
   console.log('[GameView] game_result saved to sessionStorage:', resultData)
@@ -298,7 +305,9 @@ function updateSessionGameId(realGameId) {
         console.log('[GameView] game_result gameId updated to:', realGameId)
       }
     }
-  } catch {}
+  } catch {
+    /* sessionStorage 解析失败时忽略 */
+  }
 }
 
 function handleGameEvent(type, data) {
@@ -308,7 +317,11 @@ function handleGameEvent(type, data) {
       break
     case 'player_eliminated':
       addToast(`💀 ${data.nickname} ${data.reason}`, 'elimination')
-      chatMsgs.value.push({ type: 'system', text: `💀 ${data.nickname} ${data.reason}淘汰`, time: Date.now() })
+      chatMsgs.value.push({
+        type: 'system',
+        text: `💀 ${data.nickname} ${data.reason}淘汰`,
+        time: Date.now(),
+      })
       break
     case 'player_kill': {
       const killer = gameState.value?.snakes?.[data.killerId]
@@ -325,7 +338,8 @@ function handleGameEvent(type, data) {
       break
     }
     case 'shield_used':
-      if (gameState.value?.snakes?.[data.snakeId]?.isMe) addToast('🛡 护盾抵挡了一次攻击！', 'shield')
+      if (gameState.value?.snakes?.[data.snakeId]?.isMe)
+        addToast('🛡 护盾抵挡了一次攻击！', 'shield')
       break
     case 'game_over':
       triggerGameOver(data)
@@ -335,8 +349,18 @@ function handleGameEvent(type, data) {
 
 // ---- 键盘输入 ----
 const keyMap = {
-  ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
-  w: 'up', W: 'up', s: 'down', S: 'down', a: 'left', A: 'left', d: 'right', D: 'right'
+  ArrowUp: 'up',
+  ArrowDown: 'down',
+  ArrowLeft: 'left',
+  ArrowRight: 'right',
+  w: 'up',
+  W: 'up',
+  s: 'down',
+  S: 'down',
+  a: 'left',
+  A: 'left',
+  d: 'right',
+  D: 'right',
 }
 let lastDirection = null
 
@@ -352,7 +376,7 @@ function handleKeyDown(e) {
         wsStore.send('change_direction', {
           roomId: roomSeed.roomId || route.params.roomId,
           playerId: getPlayerId(),
-          direction: dir
+          direction: dir,
         })
       }
     }
@@ -369,7 +393,9 @@ function formatTime(seconds) {
 
 function goToResult() {
   leaveRoom()
-  router.push(`/result/${sessionStorage.getItem('game_result') ? JSON.parse(sessionStorage.getItem('game_result')).gameId : 'latest'}`)
+  router.push(
+    `/result/${sessionStorage.getItem('game_result') ? JSON.parse(sessionStorage.getItem('game_result')).gameId : 'latest'}`,
+  )
 }
 
 /** 死亡后退出到大厅（多人模式） */
@@ -384,12 +410,14 @@ function handleExitGame() {
   ElMessageBox.confirm('确定要退出当前对局吗？进度将不会保存。', '退出对局', {
     confirmButtonText: '确定退出',
     cancelButtonText: '继续游戏',
-    type: 'warning'
-  }).then(() => {
-    leaveRoom()
-    isRunning.value = false
-    router.push('/lobby')
-  }).catch(() => {})
+    type: 'warning',
+  })
+    .then(() => {
+      leaveRoom()
+      isRunning.value = false
+      router.push('/lobby')
+    })
+    .catch(() => {})
 }
 
 /** 关闭死亡遮罩，继续观战 */
@@ -405,17 +433,25 @@ function leaveRoom() {
   leaving.value = true
   wsStore.send('leave_room', {
     roomId: roomSeed.roomId || route.params.roomId,
-    playerId: getPlayerId()
+    playerId: getPlayerId(),
   })
 }
 
 function registerHandlers() {
-  offHandlers.push(wsStore.on('*', (data, raw) => {
-    console.log('[GameView] WS message received:', raw?.type, raw?.type === 'game_state' ? `(snakes: ${Object.keys(data?.snakes || {}).length})` : '')
-  }))
+  offHandlers.push(
+    wsStore.on('*', (data, raw) => {
+      console.log(
+        '[GameView] WS message received:',
+        raw?.type,
+        raw?.type === 'game_state' ? `(snakes: ${Object.keys(data?.snakes || {}).length})` : '',
+      )
+    }),
+  )
   offHandlers.push(wsStore.on('game_state', handleGameState))
   offHandlers.push(wsStore.on('game_start', (data) => handleGameEvent('game_start', data)))
-  offHandlers.push(wsStore.on('player_eliminated', (data) => handleGameEvent('player_eliminated', data)))
+  offHandlers.push(
+    wsStore.on('player_eliminated', (data) => handleGameEvent('player_eliminated', data)),
+  )
   offHandlers.push(wsStore.on('player_kill', (data) => handleGameEvent('player_kill', data)))
   offHandlers.push(wsStore.on('item_picked', (data) => handleGameEvent('item_picked', data)))
   offHandlers.push(wsStore.on('shield_used', (data) => handleGameEvent('shield_used', data)))
@@ -426,7 +462,13 @@ function registerHandlers() {
 }
 
 function handleGameState(state) {
-  console.log('[GameView] game_state received:', state?.gameStatus, state?.gameTime, Object.keys(state?.snakes || {}).length, 'snakes')
+  console.log(
+    '[GameView] game_state received:',
+    state?.gameStatus,
+    state?.gameTime,
+    Object.keys(state?.snakes || {}).length,
+    'snakes',
+  )
   if (!state) return
   gameState.value = state
   mapW.value = state.mapWidth || mapW.value
@@ -453,7 +495,7 @@ function handleChatBroadcast(data) {
       senderId: data.senderId,
       senderName: data.senderName,
       text: data.text,
-      time: data.time || Date.now()
+      time: data.time || Date.now(),
     })
   }
 }
@@ -465,7 +507,11 @@ function handleError(data) {
 function loadRoomSeed() {
   const raw = sessionStorage.getItem('current_room')
   if (!raw) return {}
-  try { return JSON.parse(raw) } catch { return {} }
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return {}
+  }
 }
 
 function getPlayerId() {
@@ -503,14 +549,14 @@ async function connectAndJoin() {
       hasPassword: false,
       password: '',
       create: false,
-      allowBots: false
+      allowBots: false,
     })
   }
 }
 
 function startMockGame() {
   const myId = getPlayerId()
-  
+
   mockGameServer = createMockGame({
     playerCount: gameMode.value === 'single' ? 1 : 4,
     gameDuration: gameMode.value === 'single' ? Infinity : 300,
@@ -521,7 +567,7 @@ function startMockGame() {
     },
     onEvent: (eventType, data) => {
       handleGameEvent(eventType, data)
-    }
+    },
   })
 
   mockGameServer.initGame()
@@ -539,7 +585,7 @@ onUnmounted(() => {
     mockGameServer.destroy()
     mockGameServer = null
   } else {
-    offHandlers.forEach(off => off())
+    offHandlers.forEach((off) => off())
     if (!leaving.value) {
       leaveRoom()
     }
@@ -550,35 +596,82 @@ onUnmounted(() => {
 
 <style scoped>
 .game-view {
-  width: 100%; height: 100vh;
-  display: flex; flex-direction: column;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: #f1f8e9;
-  overflow: hidden; outline: none; position: relative;
+  overflow: hidden;
+  outline: none;
+  position: relative;
 }
 
 /* HUD */
 .game-hud {
-  display: flex; align-items: center; justify-content: center;
-  gap: 24px; padding: 8px 20px;
-  background: rgba(255,255,255,0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 8px 20px;
+  background: rgba(255, 255, 255, 0.95);
   border-bottom: 1px solid #dcedc8;
-  box-shadow: 0 1px 4px rgba(46,59,46,0.06);
-  flex-shrink: 0; z-index: 10;
+  box-shadow: 0 1px 4px rgba(46, 59, 46, 0.06);
+  flex-shrink: 0;
+  z-index: 10;
 }
 .hud-item {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 14px; color: var(--text-primary); font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 600;
 }
-.hud-item.timer { font-size: 18px; font-variant-numeric: tabular-nums; }
-.hud-item.timer.warning { color: #ef5350; animation: blink-warning 0.5s infinite; }
-@keyframes blink-warning { 0%,100%{opacity:1} 50%{opacity:0.3} }
-.hud-item.score .score-num { font-size: 20px; color: #43a047; }
-.hud-item.score .score-label { font-size: 12px; color: var(--text-secondary); }
-.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.status-dot.green { background: #66bb6a; }
-.status-dot.red { background: #ef5350; }
-.status-text { font-size: 11px; color: var(--text-muted); }
-.exit-btn { margin-left: auto; font-size: 12px; }
+.hud-item.timer {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.hud-item.timer.warning {
+  color: #ef5350;
+  animation: blink-warning 0.5s infinite;
+}
+@keyframes blink-warning {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+.hud-item.score .score-num {
+  font-size: 20px;
+  color: #43a047;
+}
+.hud-item.score .score-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.status-dot.green {
+  background: #66bb6a;
+}
+.status-dot.red {
+  background: #ef5350;
+}
+.status-text {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.exit-btn {
+  margin-left: auto;
+  font-size: 12px;
+}
 .active-item-tag {
   font-size: 12px;
   padding: 2px 8px;
@@ -590,96 +683,231 @@ onUnmounted(() => {
 }
 
 /* 主体 */
-.game-body { flex: 1; display: flex; overflow: hidden; }
-.canvas-area { flex: 1; overflow: hidden; background: #e8f5e9; }
+.game-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+.canvas-area {
+  flex: 1;
+  overflow: hidden;
+  background: #e8f5e9;
+}
 .right-panel {
-  width: 220px; flex-shrink: 0;
+  width: 220px;
+  flex-shrink: 0;
   border-left: 1px solid #dcedc8;
-  overflow-y: auto; background: #fafdf7;
+  overflow-y: auto;
+  background: #fafdf7;
 }
 
 /* 底部 */
 .game-footer {
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 8px 20px;
-  background: rgba(255,255,255,0.95);
+  background: rgba(255, 255, 255, 0.95);
   border-top: 1px solid #dcedc8;
-  flex-shrink: 0; z-index: 10;
+  flex-shrink: 0;
+  z-index: 10;
 }
-.control-hints { display: flex; gap: 20px; font-size: 12px; color: var(--text-secondary); }
+.control-hints {
+  display: flex;
+  gap: 20px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
 
 /* 聊天 */
-.chat-corner { position: absolute; bottom: 56px; left: 12px; z-index: 20; }
+.chat-corner {
+  position: absolute;
+  bottom: 56px;
+  left: 12px;
+  z-index: 20;
+}
 
 /* 弹幕 */
 .event-toasts {
-  position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
-  z-index: 30; display: flex; flex-direction: column; align-items: center;
-  gap: 6px; pointer-events: none;
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
 }
 .event-toast {
-  padding: 4px 16px; border-radius: 12px;
-  font-size: 13px; font-weight: 600; white-space: nowrap;
+  padding: 4px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
 }
-.event-toast.elimination { background: #ffebee; color: #ef5350; border: 1px solid #ffcdd2; }
-.event-toast.kill { background: #fff8e1; color: #f9a825; border: 1px solid #ffecb3; }
-.event-toast.item { background: #e3f2fd; color: #42a5f5; border: 1px solid #bbdefb; }
-.event-toast.shield { background: #f3e5f5; color: #ab47bc; border: 1px solid #e1bee7; }
+.event-toast.elimination {
+  background: #ffebee;
+  color: #ef5350;
+  border: 1px solid #ffcdd2;
+}
+.event-toast.kill {
+  background: #fff8e1;
+  color: #f9a825;
+  border: 1px solid #ffecb3;
+}
+.event-toast.item {
+  background: #e3f2fd;
+  color: #42a5f5;
+  border: 1px solid #bbdefb;
+}
+.event-toast.shield {
+  background: #f3e5f5;
+  color: #ab47bc;
+  border: 1px solid #e1bee7;
+}
 
-.toast-enter-active { animation: slideInDown 0.3s ease-out; }
-.toast-leave-active { animation: slideOutUp 0.3s ease-in; }
-@keyframes slideInDown { from{transform:translateY(-20px);opacity:0} to{transform:translateY(0);opacity:1} }
-@keyframes slideOutUp { from{transform:translateY(0);opacity:1} to{transform:translateY(-20px);opacity:0} }
+.toast-enter-active {
+  animation: slideInDown 0.3s ease-out;
+}
+.toast-leave-active {
+  animation: slideOutUp 0.3s ease-in;
+}
+@keyframes slideInDown {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes slideOutUp {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+}
 
 /* 死亡退出遮罩 */
 .death-overlay {
-  position: absolute; inset: 0; z-index: 55;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(0,0,0,0.5);
+  position: absolute;
+  inset: 0;
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
 }
 .death-card {
-  text-align: center; padding: 36px 50px;
-  background: #fff; border: 2px solid #ef5350;
-  border-radius: 18px; box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+  text-align: center;
+  padding: 36px 50px;
+  background: #fff;
+  border: 2px solid #ef5350;
+  border-radius: 18px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2);
 }
-.death-card h2 { color: #ef5350; font-size: 26px; margin-bottom: 8px; }
-.death-card p { color: var(--text-primary); font-size: 14px; margin: 6px 0; }
-.death-stats { display: flex; gap: 20px; justify-content: center; font-size: 13px !important; color: var(--text-secondary) !important; }
-.death-btn-group { margin-top: 20px; display: flex; gap: 12px; justify-content: center; }
+.death-card h2 {
+  color: #ef5350;
+  font-size: 26px;
+  margin-bottom: 8px;
+}
+.death-card p {
+  color: var(--text-primary);
+  font-size: 14px;
+  margin: 6px 0;
+}
+.death-stats {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  font-size: 13px !important;
+  color: var(--text-secondary) !important;
+}
+.death-btn-group {
+  margin-top: 20px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
 
 /* 游戏结束 */
 .game-over-overlay {
-  position: absolute; inset: 0; z-index: 50;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(241,248,233,0.85);
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(241, 248, 233, 0.85);
   backdrop-filter: blur(4px);
 }
 .game-over-card {
-  text-align: center; padding: 40px 60px;
-  background: #fff; border: 2px solid #a5d6a7;
-  border-radius: 18px; box-shadow: 0 8px 40px rgba(46,59,46,0.1);
+  text-align: center;
+  padding: 40px 60px;
+  background: #fff;
+  border: 2px solid #a5d6a7;
+  border-radius: 18px;
+  box-shadow: 0 8px 40px rgba(46, 59, 46, 0.1);
 }
-.game-over-card h2 { color: var(--primary-dark); font-size: 28px; margin-bottom: 12px; }
-.game-over-card p { color: var(--text-primary); font-size: 16px; margin: 6px 0; }
-.final-score { font-size: 32px !important; color: #43a047 !important; font-weight: 900; }
-.final-time { font-size: 14px !important; color: var(--text-muted) !important; }
-.over-btn-group { margin-top: 20px; }
+.game-over-card h2 {
+  color: var(--primary-dark);
+  font-size: 28px;
+  margin-bottom: 12px;
+}
+.game-over-card p {
+  color: var(--text-primary);
+  font-size: 16px;
+  margin: 6px 0;
+}
+.final-score {
+  font-size: 32px !important;
+  color: #43a047 !important;
+  font-weight: 900;
+}
+.final-time {
+  font-size: 14px !important;
+  color: var(--text-muted) !important;
+}
+.over-btn-group {
+  margin-top: 20px;
+}
 
 /* 开始倒计时 */
 .countdown-overlay {
-  position: absolute; inset: 0; z-index: 100;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(255,255,255,0.7); pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.7);
+  pointer-events: none;
 }
 .countdown-big {
-  font-size: 140px; font-weight: 900;
+  font-size: 140px;
+  font-weight: 900;
   color: #43a047;
-  text-shadow: 0 0 40px rgba(67,160,71,0.3);
+  text-shadow: 0 0 40px rgba(67, 160, 71, 0.3);
   animation: countPop 0.6s ease-out;
 }
 @keyframes countPop {
-  0% { transform: scale(2.5); opacity: 0; }
-  60% { transform: scale(0.9); opacity: 1; }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(0.9);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 </style>

@@ -14,7 +14,7 @@ export const useUserStore = defineStore('user', () => {
     nickname: '',
     avatar: '',
     level: 1,
-    score: 0
+    score: 0,
   })
   const isLoggedIn = computed(() => !!token.value)
 
@@ -36,7 +36,7 @@ export const useUserStore = defineStore('user', () => {
       nickname: '',
       avatar: '',
       level: 1,
-      score: 0
+      score: 0,
     }
     localStorage.removeItem('snake_token')
     localStorage.removeItem('snake_user')
@@ -63,6 +63,6 @@ export const useUserStore = defineStore('user', () => {
     isLoggedIn,
     login,
     logout,
-    restoreSession
+    restoreSession,
   }
 })

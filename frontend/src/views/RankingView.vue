@@ -20,7 +20,8 @@
     <!-- 模式切换 Tab -->
     <div class="tabs-bar">
       <div
-        v-for="tab in tabs" :key="tab.key"
+        v-for="tab in tabs"
+        :key="tab.key"
         :class="['tab-item', { active: currentMode === tab.key }]"
         @click="switchMode(tab.key)"
       >
@@ -102,7 +103,11 @@
 
     <!-- 排名表格 -->
     <div class="table-section" v-loading="loading">
-      <el-empty v-if="!loading && rankingList.length === 0" description="暂无排行数据" :image-size="100" />
+      <el-empty
+        v-if="!loading && rankingList.length === 0"
+        description="暂无排行数据"
+        :image-size="100"
+      />
 
       <template v-else>
         <el-table
@@ -136,7 +141,13 @@
             </template>
           </el-table-column>
 
-          <el-table-column :label="scoreLabel" width="120" sortable prop="totalScore" align="center">
+          <el-table-column
+            :label="scoreLabel"
+            width="120"
+            sortable
+            prop="totalScore"
+            align="center"
+          >
             <template #default="{ row }">
               <span class="score-val">{{ row.totalScore }}</span>
             </template>
@@ -146,7 +157,14 @@
 
           <el-table-column label="场次" width="80" sortable prop="totalGames" align="center" />
 
-          <el-table-column v-if="currentMode !== 'overall'" label="击杀" width="80" sortable prop="kills" align="center" />
+          <el-table-column
+            v-if="currentMode !== 'overall'"
+            label="击杀"
+            width="80"
+            sortable
+            prop="kills"
+            align="center"
+          />
 
           <el-table-column label="胜率" width="90" align="center">
             <template #default="{ row }">
@@ -202,7 +220,7 @@ const myRank = ref(null)
 const tabs = [
   { key: 'overall', label: '总榜', icon: '🏆' },
   { key: 'multi', label: '多人对战', icon: '👥' },
-  { key: 'single', label: '单人无尽', icon: '🧘' }
+  { key: 'single', label: '单人无尽', icon: '🧘' },
 ]
 
 // ---- 计算属性 ----
@@ -214,7 +232,7 @@ const topThree = computed(() => {
 const currentUserId = computed(() => userStore.userInfo.id)
 
 /** 分数列标签：总榜显示"总分"，模式榜显示"最高分" */
-const scoreLabel = computed(() => currentMode.value === 'overall' ? '总分' : '最高分')
+const scoreLabel = computed(() => (currentMode.value === 'overall' ? '总分' : '最高分'))
 
 // ---- 生命周期 ----
 onMounted(() => {
@@ -325,8 +343,15 @@ function goBack() {
   align-items: center;
   gap: 16px;
 }
-.back-btn { font-size: 14px; color: var(--primary-dark); }
-.page-title { font-size: 20px; font-weight: 700; color: var(--text-primary); }
+.back-btn {
+  font-size: 14px;
+  color: var(--primary-dark);
+}
+.page-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
 
 /* Tab 切换栏 */
 .tabs-bar {
@@ -351,14 +376,19 @@ function goBack() {
   color: var(--text-secondary);
   user-select: none;
 }
-.tab-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.tab-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
 .tab-item.active {
   background: var(--primary-color);
   color: #fff;
   border-color: var(--primary-color);
   font-weight: 600;
 }
-.tab-icon { font-size: 18px; }
+.tab-icon {
+  font-size: 18px;
+}
 
 /* 我的排名卡片 */
 .my-rank-card {
@@ -371,7 +401,9 @@ function goBack() {
   border: 1px solid #a5d6a7;
   border-radius: 12px;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
   flex-shrink: 0;
 }
 .my-rank-card:hover {
@@ -388,19 +420,45 @@ function goBack() {
   flex-direction: column;
   gap: 2px;
 }
-.my-rank-name { font-weight: 600; font-size: 15px; color: var(--text-primary); }
-.my-rank-pos { font-size: 13px; color: var(--text-secondary); }
-.my-rank-pos strong { color: var(--primary-dark); font-size: 15px; }
-.sep { margin: 0 6px; color: var(--text-muted); }
+.my-rank-name {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+.my-rank-pos {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.my-rank-pos strong {
+  color: var(--primary-dark);
+  font-size: 15px;
+}
+.sep {
+  margin: 0 6px;
+  color: var(--text-muted);
+}
 .my-rank-right {
   display: flex;
   align-items: center;
   gap: 20px;
 }
-.my-stat { text-align: center; }
-.my-stat-val { display: block; font-size: 16px; font-weight: 700; color: var(--primary-dark); }
-.my-stat-label { font-size: 11px; color: var(--text-muted); }
-.arrow-right { color: var(--primary-dark); font-size: 18px; }
+.my-stat {
+  text-align: center;
+}
+.my-stat-val {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+.my-stat-label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.arrow-right {
+  color: var(--primary-dark);
+  font-size: 18px;
+}
 
 /* 领奖台 */
 .podium {
@@ -417,10 +475,18 @@ function goBack() {
   align-items: center;
   gap: 6px;
 }
-.podium-item.first { order: 2; }
-.podium-item.second { order: 1; }
-.podium-item.third { order: 3; }
-.podium-avatar { position: relative; }
+.podium-item.first {
+  order: 2;
+}
+.podium-item.second {
+  order: 1;
+}
+.podium-item.third {
+  order: 3;
+}
+.podium-avatar {
+  position: relative;
+}
 .podium-avatar.champion {
   border: 3px solid #ffd54f;
   border-radius: 50%;
@@ -461,9 +527,18 @@ function goBack() {
   background: #ffd54f;
   padding: 14px 32px;
 }
-.podium-medal { font-size: 24px; display: block; }
-.podium-label { font-size: 12px; font-weight: 700; color: var(--text-secondary); }
-.podium-stand.first-stand .podium-label { color: #5d4037; }
+.podium-medal {
+  font-size: 24px;
+  display: block;
+}
+.podium-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.podium-stand.first-stand .podium-label {
+  color: #5d4037;
+}
 
 /* 表格区域 */
 .table-section {
@@ -482,12 +557,27 @@ function goBack() {
   gap: 6px;
   font-weight: 500;
 }
-.score-val { font-weight: 700; color: var(--primary-dark); }
+.score-val {
+  font-weight: 700;
+  color: var(--primary-dark);
+}
 
 /* 排名颜色 */
-.rank-gold { color: #f9a825; font-weight: 700; font-size: 16px; }
-.rank-silver { color: #78909c; font-weight: 700; font-size: 16px; }
-.rank-bronze { color: #e65100; font-weight: 700; font-size: 16px; }
+.rank-gold {
+  color: #f9a825;
+  font-weight: 700;
+  font-size: 16px;
+}
+.rank-silver {
+  color: #78909c;
+  font-weight: 700;
+  font-size: 16px;
+}
+.rank-bronze {
+  color: #e65100;
+  font-weight: 700;
+  font-size: 16px;
+}
 
 /* 分页 */
 .pagination-wrapper {
@@ -497,6 +587,10 @@ function goBack() {
 }
 
 /* 高亮自己 */
-:deep(.my-row) { background: #e8f5e9 !important; }
-:deep(.my-row:hover) { background: #c8e6c9 !important; }
+:deep(.my-row) {
+  background: #e8f5e9 !important;
+}
+:deep(.my-row:hover) {
+  background: #c8e6c9 !important;
+}
 </style>
