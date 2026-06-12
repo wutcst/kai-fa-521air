@@ -1,17 +1,14 @@
 package com.snake.repository;
 
 import com.snake.entity.SysUser;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
-
-/**
- * 用户数据访问接口
- */
+/** 用户数据访问接口 */
 @Repository
 public interface SysUserRepository extends JpaRepository<SysUser, Long> {
 

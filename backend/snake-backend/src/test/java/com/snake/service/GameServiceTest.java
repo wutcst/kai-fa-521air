@@ -1,5 +1,9 @@
 package com.snake.service;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
 import com.snake.entity.GameEntity;
 import com.snake.entity.GamePlayerResult;
 import com.snake.entity.SysUser;
@@ -9,36 +13,26 @@ import com.snake.repository.GamePlayerResultRepository;
 import com.snake.repository.GameRepository;
 import com.snake.repository.SysUserRepository;
 import com.snake.room.Room;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
 import org.springframework.data.domain.Pageable;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-
-/**
- * 游戏服务单元测试
- */
+/** 游戏服务单元测试 */
 @ExtendWith(MockitoExtension.class)
 class GameServiceTest {
 
-    @Mock
-    private GameRepository gameRepository;
+    @Mock private GameRepository gameRepository;
 
-    @Mock
-    private GamePlayerResultRepository playerResultRepository;
+    @Mock private GamePlayerResultRepository playerResultRepository;
 
-    @Mock
-    private SysUserRepository userRepository;
+    @Mock private SysUserRepository userRepository;
 
     private GameService gameService;
 
@@ -54,10 +48,10 @@ class GameServiceTest {
         room.setGameMode("single");
         room.setStartedAt(LocalDateTime.now());
 
-        List<ScoreEntry> rankings = List.of(
-            new ScoreEntry("1", "Player1", 500, 3, 15, true, 120.0, false, "#00e676"),
-            new ScoreEntry("bot_1", "Bot1", 100, 0, 5, false, 45.0, false, "#448aff")
-        );
+        List<ScoreEntry> rankings =
+                List.of(
+                        new ScoreEntry("1", "Player1", 500, 3, 15, true, 120.0, false, "#00e676"),
+                        new ScoreEntry("bot_1", "Bot1", 100, 0, 5, false, 45.0, false, "#448aff"));
 
         GameResult result = new GameResult("game_1", 120, rankings, "single");
 
@@ -111,10 +105,10 @@ class GameServiceTest {
         game.setStatus("finished");
 
         org.springframework.data.domain.Page<GameEntity> page =
-            new org.springframework.data.domain.PageImpl<>(List.of(game));
+                new org.springframework.data.domain.PageImpl<>(List.of(game));
 
         when(gameRepository.findAll(any(org.springframework.data.domain.Pageable.class)))
-            .thenReturn(page);
+                .thenReturn(page);
 
         // When
         Map<String, Object> result = gameService.getGameHistory(1, 20, null);
@@ -137,7 +131,7 @@ class GameServiceTest {
     @Test
     void getGameHistory_WithModeFilter_ShouldCallCorrectRepository() {
         when(gameRepository.findByGameMode(eq("single"), any()))
-            .thenReturn(org.springframework.data.domain.Page.empty());
+                .thenReturn(org.springframework.data.domain.Page.empty());
 
         Map<String, Object> result = gameService.getGameHistory(1, 20, "single");
 
@@ -174,7 +168,8 @@ class GameServiceTest {
         user.setNickname("Player1");
 
         when(gameRepository.findById(1L)).thenReturn(Optional.of(game));
-        when(playerResultRepository.findByGameIdOrderByScoreDesc(1L)).thenReturn(List.of(playerResult));
+        when(playerResultRepository.findByGameIdOrderByScoreDesc(1L))
+                .thenReturn(List.of(playerResult));
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
         // When
@@ -226,7 +221,7 @@ class GameServiceTest {
         assertEquals(2, stats.get("totalGames"));
         assertEquals(700, stats.get("totalScore"));
         assertEquals(4, stats.get("totalKills"));
-        assertEquals(1L, stats.get("wins"));  // rank=1 once
+        assertEquals(1L, stats.get("wins")); // rank=1 once
         assertEquals(500, stats.get("bestScore"));
     }
 }

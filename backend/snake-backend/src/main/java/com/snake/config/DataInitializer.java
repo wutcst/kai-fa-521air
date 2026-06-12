@@ -8,10 +8,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-/**
- * 数据初始化器
- * 在应用启动时创建或修复默认用户（密码经过 BCrypt 加密）
- */
+/** 数据初始化器 在应用启动时创建或修复默认用户（密码经过 BCrypt 加密） */
 @Component
 public class DataInitializer implements CommandLineRunner {
 
@@ -32,8 +29,8 @@ public class DataInitializer implements CommandLineRunner {
         createOrUpdate("test", "123456", "测试用户", 1, 100);
     }
 
-    private void createOrUpdate(String username, String rawPassword, String nickname,
-                                 int level, long totalScore) {
+    private void createOrUpdate(
+            String username, String rawPassword, String nickname, int level, long totalScore) {
         SysUser user = userRepository.findByUsername(username).orElse(null);
         if (user == null) {
             user = new SysUser();

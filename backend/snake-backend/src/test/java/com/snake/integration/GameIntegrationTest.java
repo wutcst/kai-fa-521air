@@ -1,20 +1,17 @@
 package com.snake.integration;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.snake.entity.GameEntity;
 import com.snake.entity.GamePlayerResult;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.*;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.*;
-
-/**
- * 游戏记录 API 集成测试
- */
+/** 游戏记录 API 集成测试 */
 class GameIntegrationTest extends BaseIntegrationTest {
 
     @BeforeEach
@@ -47,8 +44,8 @@ class GameIntegrationTest extends BaseIntegrationTest {
     @SuppressWarnings("unchecked")
     @Test
     void getGameHistory_ShouldReturnGames() {
-        ResponseEntity<Map> response = restTemplate.getForEntity(
-                baseUrl() + "/api/games", Map.class);
+        ResponseEntity<Map> response =
+                restTemplate.getForEntity(baseUrl() + "/api/games", Map.class);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         Map<String, Object> body = response.getBody();
@@ -59,8 +56,8 @@ class GameIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getGameHistory_WithModeFilter_ShouldReturnFiltered() {
-        ResponseEntity<Map> response = restTemplate.getForEntity(
-                baseUrl() + "/api/games?mode=single", Map.class);
+        ResponseEntity<Map> response =
+                restTemplate.getForEntity(baseUrl() + "/api/games?mode=single", Map.class);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         Map<String, Object> body = response.getBody();
@@ -72,15 +69,16 @@ class GameIntegrationTest extends BaseIntegrationTest {
     @Test
     void getGameDetail_WithExistingGame_ShouldReturnDetail() {
         // 获取第一个游戏 ID
-        ResponseEntity<Map> historyResp = restTemplate.getForEntity(
-                baseUrl() + "/api/games", Map.class);
-        List<Map<String, Object>> list = (List<Map<String, Object>>) historyResp.getBody().get("list");
+        ResponseEntity<Map> historyResp =
+                restTemplate.getForEntity(baseUrl() + "/api/games", Map.class);
+        List<Map<String, Object>> list =
+                (List<Map<String, Object>>) historyResp.getBody().get("list");
         assertFalse(list.isEmpty(), "必须有测试游戏数据");
         Long gameId = ((Number) list.get(0).get("id")).longValue();
 
         // 查询详情
-        ResponseEntity<Map> detailResp = restTemplate.getForEntity(
-                baseUrl() + "/api/games/" + gameId, Map.class);
+        ResponseEntity<Map> detailResp =
+                restTemplate.getForEntity(baseUrl() + "/api/games/" + gameId, Map.class);
 
         assertEquals(HttpStatus.OK, detailResp.getStatusCode());
         Map<String, Object> detail = detailResp.getBody();
@@ -91,8 +89,8 @@ class GameIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getGameDetail_WithNonExistentGame_ShouldReturn404() {
-        ResponseEntity<Map> response = restTemplate.getForEntity(
-                baseUrl() + "/api/games/99999", Map.class);
+        ResponseEntity<Map> response =
+                restTemplate.getForEntity(baseUrl() + "/api/games/99999", Map.class);
 
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         assertEquals("游戏记录不存在", response.getBody().get("message"));
@@ -101,8 +99,8 @@ class GameIntegrationTest extends BaseIntegrationTest {
     @SuppressWarnings("unchecked")
     @Test
     void getPlayerStats_ShouldReturnStats() {
-        ResponseEntity<Map> response = restTemplate.getForEntity(
-                baseUrl() + "/api/games/player/999999/stats", Map.class);
+        ResponseEntity<Map> response =
+                restTemplate.getForEntity(baseUrl() + "/api/games/player/999999/stats", Map.class);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         Map<String, Object> body = response.getBody();

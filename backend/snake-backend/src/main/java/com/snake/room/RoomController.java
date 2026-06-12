@@ -3,7 +3,6 @@ package com.snake.room;
 import com.snake.dto.CreateRoomRequest;
 import com.snake.dto.JoinRoomRequest;
 import com.snake.dto.RoomResponse;
-import com.snake.dto.RoomResponse.PlayerInfo;
 import com.snake.entity.RoomEntity;
 import com.snake.entity.RoomPlayer;
 import com.snake.entity.SysUser;
@@ -16,6 +15,8 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.*;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -23,14 +24,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.*;
-import java.util.stream.Collectors;
-
-/**
- * 房间 REST API
- * 提供房间列表、创建、加入、退出、更新等接口
- * 同时将房间数据持久化到数据库，并与 RoomManager (WebSocket) 同步
- */
+/** 房间 REST API 提供房间列表、创建、加入、退出、更新等接口 同时将房间数据持久化到数据库，并与 RoomManager (WebSocket) 同步 */
 @RestController
 @RequestMapping("/api/rooms")
 @Tag(name = "04-房间管理", description = "房间列表、创建、加入、退出、更新设置、获取房间详情")
@@ -43,23 +37,23 @@ public class RoomController {
     private final RoomRepository roomRepository;
     private final RoomPlayerRepository roomPlayerRepository;
 
-    public RoomController(RoomManager roomManager, SysUserRepository userRepository,
-                          RoomRepository roomRepository, RoomPlayerRepository roomPlayerRepository) {
+    public RoomController(
+            RoomManager roomManager,
+            SysUserRepository userRepository,
+            RoomRepository roomRepository,
+            RoomPlayerRepository roomPlayerRepository) {
         this.roomManager = roomManager;
         this.userRepository = userRepository;
         this.roomRepository = roomRepository;
         this.roomPlayerRepository = roomPlayerRepository;
     }
 
-    /**
-     * 获取房间列表
-     * 从数据库获取持久化房间，并与 RoomManager 中的实时房间合并
-     */
+    /** 获取房间列表 从数据库获取持久化房间，并与 RoomManager 中的实时房间合并 */
     @GetMapping("/list")
-    @Operation(summary = "获取房间列表", description = "分页查询房间列表，支持按状态、关键字、游戏模式筛选。合并数据库持久化房间与 WebSocket 实时房间")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "成功返回房间列表")
-    })
+    @Operation(
+            summary = "获取房间列表",
+            description = "分页查询房间列表，支持按状态、关键字、游戏模式筛选。合并数据库持久化房间与 WebSocket 实时房间")
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "成功返回房间列表")})
     public RoomManager.RoomListResponse listRooms(
             @RequestParam(name = "page", defaultValue = "1") int page,
             @RequestParam(name = "size", defaultValue = "100") int size,
@@ -73,22 +67,33 @@ public class RoomController {
             dbRooms = roomRepository.findByStatusOrderByCreatedAtDesc(status);
         } else {
             // 大厅列表不展示已结束（finished）的房间
-            dbRooms = roomRepository.findAll().stream()
-                    .filter(r -> !"finished".equals(r.getStatus()))
-                    .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
-                    .collect(Collectors.toList());
+            dbRooms =
+                    roomRepository.findAll().stream()
+                            .filter(r -> !"finished".equals(r.getStatus()))
+                            .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+                            .collect(Collectors.toList());
         }
 
         // 过滤关键字和模式
-        List<RoomEntity> filtered = dbRooms.stream()
-                .filter(r -> keyword == null || keyword.isBlank() || r.getName().contains(keyword))
-                .filter(r -> mode == null || mode.isBlank() || "all".equals(mode) || mode.equalsIgnoreCase(r.getGameMode()))
-                .collect(Collectors.toList());
+        List<RoomEntity> filtered =
+                dbRooms.stream()
+                        .filter(
+                                r ->
+                                        keyword == null
+                                                || keyword.isBlank()
+                                                || r.getName().contains(keyword))
+                        .filter(
+                                r ->
+                                        mode == null
+                                                || mode.isBlank()
+                                                || "all".equals(mode)
+                                                || mode.equalsIgnoreCase(r.getGameMode()))
+                        .collect(Collectors.toList());
 
         // 合并 RoomManager 中的实时房间（WebSocket 创建但尚未持久化的）
         Map<String, RoomManager.RoomSummary> liveRoomMap = new LinkedHashMap<>();
-        RoomManager.RoomListResponse liveResponse = roomManager.listRooms(
-                new RoomManager.RoomQuery(1, 1000, null, null, null));
+        RoomManager.RoomListResponse liveResponse =
+                roomManager.listRooms(new RoomManager.RoomQuery(1, 1000, null, null, null));
         for (RoomManager.RoomSummary s : liveResponse.list()) {
             liveRoomMap.put(s.id(), s);
         }
@@ -106,7 +111,9 @@ public class RoomController {
                 // DB 中有记录但 RoomManager 中没有的房间：
                 // 如果状态是 waiting 且不在实时列表中，说明已被清理但 DB 未更新，跳过
                 if ("waiting".equals(r.getStatus())) {
-                    log.info("Skipping stale room {} from DB (status=waiting, not in live RoomManager)", r.getId());
+                    log.info(
+                            "Skipping stale room {} from DB (status=waiting, not in live RoomManager)",
+                            r.getId());
                     continue;
                 }
                 // 使用 DB 数据（finished 状态的房间保留以展示历史）
@@ -114,15 +121,25 @@ public class RoomController {
                 // 查房主昵称
                 String hostName = null;
                 if (r.getHostId() != null) {
-                    hostName = userRepository.findById(Long.valueOf(r.getHostId()))
-                            .map(SysUser::getNickname).orElse(null);
+                    hostName =
+                            userRepository
+                                    .findById(Long.valueOf(r.getHostId()))
+                                    .map(SysUser::getNickname)
+                                    .orElse(null);
                 }
-                merged.add(new RoomManager.RoomSummary(
-                        r.getId(), r.getName(), r.getHostId(), hostName,
-                        (int) playerCount, r.getMaxPlayers(), r.getStatus(),
-                        r.isHasPassword(), r.getGameDuration(), r.getGameMode(),
-                        r.isAllowBots()
-                ));
+                merged.add(
+                        new RoomManager.RoomSummary(
+                                r.getId(),
+                                r.getName(),
+                                r.getHostId(),
+                                hostName,
+                                (int) playerCount,
+                                r.getMaxPlayers(),
+                                r.getStatus(),
+                                r.isHasPassword(),
+                                r.getGameDuration(),
+                                r.getGameMode(),
+                                r.isAllowBots()));
             }
         }
 
@@ -134,67 +151,71 @@ public class RoomController {
         }
 
         // 排序：waiting 状态优先，按创建时间倒序
-        merged.sort((a, b) -> {
-            int aOrder = "waiting".equals(a.status()) || "full".equals(a.status()) ? 0 : 1;
-            int bOrder = "waiting".equals(b.status()) || "full".equals(b.status()) ? 0 : 1;
-            if (aOrder != bOrder) return aOrder - bOrder;
-            return b.id().compareTo(a.id());
-        });
+        merged.sort(
+                (a, b) -> {
+                    int aOrder = "waiting".equals(a.status()) || "full".equals(a.status()) ? 0 : 1;
+                    int bOrder = "waiting".equals(b.status()) || "full".equals(b.status()) ? 0 : 1;
+                    if (aOrder != bOrder) return aOrder - bOrder;
+                    return b.id().compareTo(a.id());
+                });
 
         // 分页
         int total = merged.size();
         int from = (page - 1) * size;
         int to = Math.min(from + size, total);
-        List<RoomManager.RoomSummary> pageList = from >= total ? List.of() : merged.subList(from, to);
+        List<RoomManager.RoomSummary> pageList =
+                from >= total ? List.of() : merged.subList(from, to);
 
         return new RoomManager.RoomListResponse(pageList, total, page, size);
     }
 
-    /**
-     * 获取在线人数
-     */
+    /** 获取在线人数 */
     @GetMapping("/online-count")
     @Operation(summary = "获取在线人数", description = "返回当前 WebSocket 在线用户数")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "成功返回在线人数",
-            content = @Content(examples = @ExampleObject(value = "{\"count\":42}")))
+        @ApiResponse(
+                responseCode = "200",
+                description = "成功返回在线人数",
+                content = @Content(examples = @ExampleObject(value = "{\"count\":42}")))
     })
     public Map<String, Object> onlineCount() {
         return Map.of("count", roomManager.getOnlineCount());
     }
 
-    /**
-     * 创建房间
-     * 同时持久化到数据库和 RoomManager
-     */
+    /** 创建房间 同时持久化到数据库和 RoomManager */
     @PostMapping
-    @Operation(summary = "创建房间", description = "需要 JWT token，创建新房间并同时持久化到数据库和 RoomManager（WebSocket）")
+    @Operation(
+            summary = "创建房间",
+            description = "需要 JWT token，创建新房间并同时持久化到数据库和 RoomManager（WebSocket）")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "房间创建成功，返回房间详情"),
-        @ApiResponse(responseCode = "401", description = "未登录或用户不存在",
-            content = @Content(examples = @ExampleObject(value = "{\"message\":\"未登录\"}")))
+        @ApiResponse(
+                responseCode = "401",
+                description = "未登录或用户不存在",
+                content = @Content(examples = @ExampleObject(value = "{\"message\":\"未登录\"}")))
     })
-    public ResponseEntity<?> createRoom(@RequestBody CreateRoomRequest request,
-                                         Authentication authentication) {
+    public ResponseEntity<?> createRoom(
+            @RequestBody CreateRoomRequest request, Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("message", "未登录"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "未登录"));
         }
         Long userId = (Long) authentication.getPrincipal();
         SysUser user = userRepository.findById(userId).orElse(null);
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("message", "用户不存在"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "用户不存在"));
         }
 
         String roomId = "room_" + System.currentTimeMillis() + "_" + userId;
         String userStrId = String.valueOf(userId);
-        String roomName = request.getName() != null && !request.getName().isBlank()
-                ? request.getName() : user.getNickname() + "的房间";
+        String roomName =
+                request.getName() != null && !request.getName().isBlank()
+                        ? request.getName()
+                        : user.getNickname() + "的房间";
         String gameMode = request.getGameMode() != null ? request.getGameMode() : "multi";
         boolean isSingle = "single".equals(gameMode);
         int maxPlayers = isSingle ? 1 : (request.getMaxPlayers() > 0 ? request.getMaxPlayers() : 6);
-        int gameDuration = isSingle ? 0 : (request.getGameDuration() > 0 ? request.getGameDuration() : 300);
+        int gameDuration =
+                isSingle ? 0 : (request.getGameDuration() > 0 ? request.getGameDuration() : 300);
 
         // 1. 持久化到数据库
         RoomEntity roomEntity = new RoomEntity();
@@ -219,11 +240,23 @@ public class RoomController {
         roomPlayerRepository.save(hostPlayer);
 
         // 3. 同步注册到 RoomManager（实时 WebSocket 可见）
-        roomManager.registerRoom(roomId, roomName, userStrId, user.getNickname(),
-                gameMode, maxPlayers, gameDuration,
-                request.isHasPassword(), request.getPassword(), request.isAllowBots());
+        roomManager.registerRoom(
+                roomId,
+                roomName,
+                userStrId,
+                user.getNickname(),
+                gameMode,
+                maxPlayers,
+                gameDuration,
+                request.isHasPassword(),
+                request.getPassword(),
+                request.isAllowBots());
 
-        log.info("Room created and persisted: {} by user {} (id={})", roomId, user.getUsername(), userId);
+        log.info(
+                "Room created and persisted: {} by user {} (id={})",
+                roomId,
+                user.getUsername(),
+                userId);
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("roomId", roomId);
@@ -242,27 +275,38 @@ public class RoomController {
         return ResponseEntity.ok(data);
     }
 
-    /**
-     * 加入房间
-     */
+    /** 加入房间 */
     @PostMapping("/{roomId}/join")
     @Operation(summary = "加入房间", description = "需要 JWT token，加入指定房间。有密码的房间需提供密码")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "成功加入房间",
-            content = @Content(examples = @ExampleObject(value = "{\"roomId\":\"room_xxx\",\"success\":true}"))),
-        @ApiResponse(responseCode = "400", description = "房间已满/已开始/密码错误/需要密码",
-            content = @Content(examples = @ExampleObject(value = "{\"message\":\"房间已满\"}"))),
-        @ApiResponse(responseCode = "401", description = "未登录",
-            content = @Content(examples = @ExampleObject(value = "{\"message\":\"未登录\"}"))),
-        @ApiResponse(responseCode = "404", description = "房间不存在",
-            content = @Content(examples = @ExampleObject(value = "{\"message\":\"房间不存在\"}")))
+        @ApiResponse(
+                responseCode = "200",
+                description = "成功加入房间",
+                content =
+                        @Content(
+                                examples =
+                                        @ExampleObject(
+                                                value =
+                                                        "{\"roomId\":\"room_xxx\",\"success\":true}"))),
+        @ApiResponse(
+                responseCode = "400",
+                description = "房间已满/已开始/密码错误/需要密码",
+                content = @Content(examples = @ExampleObject(value = "{\"message\":\"房间已满\"}"))),
+        @ApiResponse(
+                responseCode = "401",
+                description = "未登录",
+                content = @Content(examples = @ExampleObject(value = "{\"message\":\"未登录\"}"))),
+        @ApiResponse(
+                responseCode = "404",
+                description = "房间不存在",
+                content = @Content(examples = @ExampleObject(value = "{\"message\":\"房间不存在\"}")))
     })
-    public ResponseEntity<?> joinRoom(@PathVariable String roomId,
-                                       @RequestBody(required = false) JoinRoomRequest request,
-                                       Authentication authentication) {
+    public ResponseEntity<?> joinRoom(
+            @PathVariable String roomId,
+            @RequestBody(required = false) JoinRoomRequest request,
+            Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("message", "未登录"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "未登录"));
         }
         Long userId = (Long) authentication.getPrincipal();
         String userStrId = String.valueOf(userId);
@@ -270,8 +314,7 @@ public class RoomController {
         // 从 RoomManager 获取房间信息
         RoomManager.RoomSummary summary = findRoomSummary(roomId);
         if (summary == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("message", "房间不存在"));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "房间不存在"));
         }
         if ("playing".equals(summary.status())) {
             return ResponseEntity.badRequest().body(Map.of("message", "游戏已开始，无法加入"));
@@ -290,8 +333,8 @@ public class RoomController {
             if (room != null) {
                 storedPassword = room.getPassword();
             } else {
-                storedPassword = roomRepository.findById(roomId)
-                        .map(RoomEntity::getPassword).orElse(null);
+                storedPassword =
+                        roomRepository.findById(roomId).map(RoomEntity::getPassword).orElse(null);
             }
             if (storedPassword != null && !storedPassword.equals(pwd)) {
                 return ResponseEntity.badRequest().body(Map.of("message", "密码错误"));
@@ -299,7 +342,8 @@ public class RoomController {
         }
 
         // 持久化玩家加入记录到数据库
-        Optional<RoomPlayer> existing = roomPlayerRepository.findByRoomIdAndUserId(roomId, userStrId);
+        Optional<RoomPlayer> existing =
+                roomPlayerRepository.findByRoomIdAndUserId(roomId, userStrId);
         if (existing.isEmpty()) {
             RoomPlayer player = new RoomPlayer();
             player.setRoomId(roomId);
@@ -310,28 +354,25 @@ public class RoomController {
         }
 
         log.info("Player {} joined room {} via REST", userId, roomId);
-        return ResponseEntity.ok(Map.of(
-                "roomId", roomId,
-                "success", true
-        ));
+        return ResponseEntity.ok(Map.of("roomId", roomId, "success", true));
     }
 
-    /**
-     * 退出房间
-     */
+    /** 退出房间 */
     @PostMapping("/{roomId}/leave")
     @Operation(summary = "退出房间", description = "需要 JWT token，退出指定房间")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "成功退出房间",
-            content = @Content(examples = @ExampleObject(value = "{\"success\":true}"))),
-        @ApiResponse(responseCode = "401", description = "未登录",
-            content = @Content(examples = @ExampleObject(value = "{\"message\":\"未登录\"}")))
+        @ApiResponse(
+                responseCode = "200",
+                description = "成功退出房间",
+                content = @Content(examples = @ExampleObject(value = "{\"success\":true}"))),
+        @ApiResponse(
+                responseCode = "401",
+                description = "未登录",
+                content = @Content(examples = @ExampleObject(value = "{\"message\":\"未登录\"}")))
     })
-    public ResponseEntity<?> leaveRoom(@PathVariable String roomId,
-                                        Authentication authentication) {
+    public ResponseEntity<?> leaveRoom(@PathVariable String roomId, Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("message", "未登录"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "未登录"));
         }
         Long userId = (Long) authentication.getPrincipal();
         String userStrId = String.valueOf(userId);
@@ -343,32 +384,35 @@ public class RoomController {
         return ResponseEntity.ok(Map.of("success", true));
     }
 
-    /**
-     * 更新房间设置
-     */
+    /** 更新房间设置 */
     @PutMapping("/{roomId}")
     @Operation(summary = "更新房间设置", description = "需要 JWT token，更新房间名称、最大玩家数、游戏时长、密码等设置")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "更新成功",
-            content = @Content(examples = @ExampleObject(value = "{\"success\":true}"))),
-        @ApiResponse(responseCode = "401", description = "未登录",
-            content = @Content(examples = @ExampleObject(value = "{\"message\":\"未登录\"}"))),
-        @ApiResponse(responseCode = "404", description = "房间不存在",
-            content = @Content(examples = @ExampleObject(value = "{\"message\":\"房间不存在\"}")))
+        @ApiResponse(
+                responseCode = "200",
+                description = "更新成功",
+                content = @Content(examples = @ExampleObject(value = "{\"success\":true}"))),
+        @ApiResponse(
+                responseCode = "401",
+                description = "未登录",
+                content = @Content(examples = @ExampleObject(value = "{\"message\":\"未登录\"}"))),
+        @ApiResponse(
+                responseCode = "404",
+                description = "房间不存在",
+                content = @Content(examples = @ExampleObject(value = "{\"message\":\"房间不存在\"}")))
     })
-    public ResponseEntity<?> updateRoom(@PathVariable String roomId,
-                                         @RequestBody Map<String, Object> settings,
-                                         Authentication authentication) {
+    public ResponseEntity<?> updateRoom(
+            @PathVariable String roomId,
+            @RequestBody Map<String, Object> settings,
+            Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("message", "未登录"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "未登录"));
         }
 
         // 更新数据库记录
         Optional<RoomEntity> optRoom = roomRepository.findById(roomId);
         if (optRoom.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("message", "房间不存在"));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "房间不存在"));
         }
 
         RoomEntity room = optRoom.get();
@@ -396,15 +440,15 @@ public class RoomController {
         return ResponseEntity.ok(Map.of("success", true));
     }
 
-    /**
-     * 获取房间详情
-     */
+    /** 获取房间详情 */
     @GetMapping("/{roomId}")
     @Operation(summary = "获取房间详情", description = "按房间ID查询房间详细信息，优先返回 RoomManager 实时数据，否则从数据库查询")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "成功返回房间详情"),
-        @ApiResponse(responseCode = "404", description = "房间不存在",
-            content = @Content(examples = @ExampleObject(value = "{\"message\":\"房间不存在\"}")))
+        @ApiResponse(
+                responseCode = "404",
+                description = "房间不存在",
+                content = @Content(examples = @ExampleObject(value = "{\"message\":\"房间不存在\"}")))
     })
     public ResponseEntity<?> getRoom(@PathVariable String roomId) {
         // 优先从 RoomManager 获取实时数据
@@ -428,15 +472,17 @@ public class RoomController {
         // 从数据库查询
         Optional<RoomEntity> optRoom = roomRepository.findById(roomId);
         if (optRoom.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("message", "房间不存在"));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "房间不存在"));
         }
 
         RoomEntity room = optRoom.get();
         String hostName = null;
         if (room.getHostId() != null) {
-            hostName = userRepository.findById(Long.valueOf(room.getHostId()))
-                    .map(SysUser::getNickname).orElse(null);
+            hostName =
+                    userRepository
+                            .findById(Long.valueOf(room.getHostId()))
+                            .map(SysUser::getNickname)
+                            .orElse(null);
         }
         long playerCount = roomPlayerRepository.countByRoomId(roomId);
 
@@ -457,11 +503,8 @@ public class RoomController {
     }
 
     private RoomManager.RoomSummary findRoomSummary(String roomId) {
-        RoomManager.RoomListResponse response = roomManager.listRooms(
-                new RoomManager.RoomQuery(1, 1000, null, null, null));
-        return response.list().stream()
-                .filter(s -> s.id().equals(roomId))
-                .findFirst()
-                .orElse(null);
+        RoomManager.RoomListResponse response =
+                roomManager.listRooms(new RoomManager.RoomQuery(1, 1000, null, null, null));
+        return response.list().stream().filter(s -> s.id().equals(roomId)).findFirst().orElse(null);
     }
 }

@@ -6,6 +6,8 @@ import com.snake.entity.SysUser;
 import com.snake.repository.GamePlayerResultRepository;
 import com.snake.repository.GameRepository;
 import com.snake.repository.SysUserRepository;
+import java.util.*;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -14,13 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
-import java.util.stream.Collectors;
-
-/**
- * 排行榜服务
- * 提供总榜、分模式排行榜、当前用户排名查询
- */
+/** 排行榜服务 提供总榜、分模式排行榜、当前用户排名查询 */
 @Service
 public class RankingService {
 
@@ -30,9 +26,10 @@ public class RankingService {
     private final GamePlayerResultRepository playerResultRepository;
     private final GameRepository gameRepository;
 
-    public RankingService(SysUserRepository userRepository,
-                          GamePlayerResultRepository playerResultRepository,
-                          GameRepository gameRepository) {
+    public RankingService(
+            SysUserRepository userRepository,
+            GamePlayerResultRepository playerResultRepository,
+            GameRepository gameRepository) {
         this.userRepository = userRepository;
         this.playerResultRepository = playerResultRepository;
         this.gameRepository = gameRepository;
@@ -40,26 +37,31 @@ public class RankingService {
 
     /**
      * 获取总榜（按累计总分降序）
+     *
      * @param page 页码
      * @param size 每页条数
      */
     public Map<String, Object> getOverallRanking(int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "totalScore"));
+        Pageable pageable =
+                PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "totalScore"));
         Page<SysUser> userPage = userRepository.findAllByStatusOrderByTotalScoreDesc(1, pageable);
 
-        List<Map<String, Object>> list = userPage.getContent().stream()
-                .map(u -> {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("rank", 0); // 后面计算
-                    m.put("userId", String.valueOf(u.getId()));
-                    m.put("nickname", u.getNickname());
-                    m.put("avatar", u.getAvatar());
-                    m.put("totalScore", u.getTotalScore());
-                    m.put("totalGames", u.getTotalGames());
-                    m.put("wins", u.getWins());
-                    m.put("level", u.getLevel());
-                    return m;
-                }).collect(Collectors.toList());
+        List<Map<String, Object>> list =
+                userPage.getContent().stream()
+                        .map(
+                                u -> {
+                                    Map<String, Object> m = new LinkedHashMap<>();
+                                    m.put("rank", 0); // 后面计算
+                                    m.put("userId", String.valueOf(u.getId()));
+                                    m.put("nickname", u.getNickname());
+                                    m.put("avatar", u.getAvatar());
+                                    m.put("totalScore", u.getTotalScore());
+                                    m.put("totalGames", u.getTotalGames());
+                                    m.put("wins", u.getWins());
+                                    m.put("level", u.getLevel());
+                                    return m;
+                                })
+                        .collect(Collectors.toList());
 
         // 计算实际排名（考虑并列）
         assignRanksByScore(list, (long) (page - 1) * size);
@@ -74,8 +76,8 @@ public class RankingService {
     }
 
     /**
-     * 获取分模式排行榜（按该模式下单局最高分降序）
-     * 从 game_player_result 取每个用户的最高单场得分，过滤 bot，按 game_mode 筛选
+     * 获取分模式排行榜（按该模式下单局最高分降序） 从 game_player_result 取每个用户的最高单场得分，过滤 bot，按 game_mode 筛选
+     *
      * @param mode 游戏模式: multi / single
      * @param page 页码
      * @param size 每页条数
@@ -83,7 +85,8 @@ public class RankingService {
     public Map<String, Object> getModeRanking(String mode, int page, int size) {
         // 1. 查询指定模式下的所有游戏 ID
         List<GameEntity> modeGames = gameRepository.findByGameModeOrderByCreatedAtDesc(mode);
-        Set<Long> modeGameIds = modeGames.stream().map(GameEntity::getId).collect(Collectors.toSet());
+        Set<Long> modeGameIds =
+                modeGames.stream().map(GameEntity::getId).collect(Collectors.toSet());
 
         if (modeGameIds.isEmpty()) {
             Map<String, Object> empty = new LinkedHashMap<>();
@@ -107,27 +110,37 @@ public class RankingService {
         }
 
         // 4. 按单局最高分降序排列
-        List<Map<String, Object>> allList = userScores.entrySet().stream()
-                .sorted((a, b) -> Long.compare(b.getValue().bestScore, a.getValue().bestScore))
-                .map(e -> {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("rank", 0);
-                    m.put("userId", e.getKey());
-                    m.put("totalScore", e.getValue().bestScore);     // 排名分数 = 单局最高分
-                    m.put("totalGames", e.getValue().games);
-                    m.put("wins", e.getValue().wins);
-                    m.put("kills", e.getValue().kills);
-                    // 查昵称
-                    String nickname = e.getKey();
-                    try {
-                        nickname = userRepository.findById(Long.parseLong(e.getKey()))
-                                .map(SysUser::getNickname).orElse(e.getKey());
-                    } catch (NumberFormatException ignored) {}
-                    m.put("nickname", nickname);
-                    m.put("avatar", "");
-                    m.put("level", 0);
-                    return m;
-                }).collect(Collectors.toList());
+        List<Map<String, Object>> allList =
+                userScores.entrySet().stream()
+                        .sorted(
+                                (a, b) ->
+                                        Long.compare(
+                                                b.getValue().bestScore, a.getValue().bestScore))
+                        .map(
+                                e -> {
+                                    Map<String, Object> m = new LinkedHashMap<>();
+                                    m.put("rank", 0);
+                                    m.put("userId", e.getKey());
+                                    m.put("totalScore", e.getValue().bestScore); // 排名分数 = 单局最高分
+                                    m.put("totalGames", e.getValue().games);
+                                    m.put("wins", e.getValue().wins);
+                                    m.put("kills", e.getValue().kills);
+                                    // 查昵称
+                                    String nickname = e.getKey();
+                                    try {
+                                        nickname =
+                                                userRepository
+                                                        .findById(Long.parseLong(e.getKey()))
+                                                        .map(SysUser::getNickname)
+                                                        .orElse(e.getKey());
+                                    } catch (NumberFormatException ignored) {
+                                    }
+                                    m.put("nickname", nickname);
+                                    m.put("avatar", "");
+                                    m.put("level", 0);
+                                    return m;
+                                })
+                        .collect(Collectors.toList());
 
         // 5. 分页
         int total = allList.size();
@@ -148,6 +161,7 @@ public class RankingService {
 
     /**
      * 获取当前用户的排名信息
+     *
      * @param userId 用户ID（String 形式）
      */
     public Map<String, Object> getMyRank(String userId) {
@@ -158,7 +172,8 @@ public class RankingService {
         SysUser user = null;
         try {
             user = userRepository.findById(Long.parseLong(userId)).orElse(null);
-        } catch (NumberFormatException ignored) {}
+        } catch (NumberFormatException ignored) {
+        }
 
         if (user != null) {
             myRank.put("nickname", user.getNickname());
@@ -169,7 +184,8 @@ public class RankingService {
             myRank.put("avatar", user.getAvatar());
 
             // 总榜排名：计算有多少人总分比当前用户高
-            long overallRank = userRepository.countByTotalScoreGreaterThan(user.getTotalScore()) + 1;
+            long overallRank =
+                    userRepository.countByTotalScoreGreaterThan(user.getTotalScore()) + 1;
             myRank.put("overallRank", overallRank);
 
             // 胜场排名
@@ -220,7 +236,8 @@ public class RankingService {
     /** 计算用户在指定模式下的排名（按单局最高分） */
     private long computeModeRank(String userId, String mode) {
         List<GameEntity> modeGames = gameRepository.findByGameModeOrderByCreatedAtDesc(mode);
-        Set<Long> modeGameIds = modeGames.stream().map(GameEntity::getId).collect(Collectors.toSet());
+        Set<Long> modeGameIds =
+                modeGames.stream().map(GameEntity::getId).collect(Collectors.toSet());
 
         if (modeGameIds.isEmpty()) return 0;
 
@@ -243,7 +260,7 @@ public class RankingService {
 
     /** 内部类：模式排名聚合（排名依据单局最高分，其余字段累计） */
     private static class ModeRank {
-        long bestScore = 0;    // 单局最高分（排名依据）
+        long bestScore = 0; // 单局最高分（排名依据）
         int games = 0;
         int wins = 0;
         int kills = 0;

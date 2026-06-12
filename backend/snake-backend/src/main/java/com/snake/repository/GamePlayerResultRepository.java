@@ -1,14 +1,11 @@
 package com.snake.repository;
 
 import com.snake.entity.GamePlayerResult;
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-
-/**
- * 玩家成绩数据访问接口
- */
+/** 玩家成绩数据访问接口 */
 @Repository
 public interface GamePlayerResultRepository extends JpaRepository<GamePlayerResult, Long> {
 

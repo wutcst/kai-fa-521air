@@ -8,18 +8,14 @@ import com.snake.room.Player;
 import com.snake.room.Room;
 import com.snake.room.RoomManager;
 import com.snake.room.RoomStatus;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
-/**
- * 快速匹配服务
- * 维护匹配队列，玩家两两配对，自动创建房间
- */
+/** 快速匹配服务 维护匹配队列，玩家两两配对，自动创建房间 */
 @Service
 public class MatchmakingService {
 
@@ -35,17 +31,18 @@ public class MatchmakingService {
     /** 已匹配结果：userId → 匹配到的房间ID（供前端轮询查询） */
     private final Map<String, String> matchResults = new ConcurrentHashMap<>();
 
-    public MatchmakingService(RoomManager roomManager,
-                              RoomRepository roomRepository,
-                              RoomPlayerRepository roomPlayerRepository) {
+    public MatchmakingService(
+            RoomManager roomManager,
+            RoomRepository roomRepository,
+            RoomPlayerRepository roomPlayerRepository) {
         this.roomManager = roomManager;
         this.roomRepository = roomRepository;
         this.roomPlayerRepository = roomPlayerRepository;
     }
 
     /**
-     * 加入匹配队列
-     * 如果队列中已有等待玩家，立即配对；否则加入队列等待
+     * 加入匹配队列 如果队列中已有等待玩家，立即配对；否则加入队列等待
+     *
      * @param userId 用户ID
      * @param nickname 昵称
      * @return 匹配状态
@@ -80,14 +77,16 @@ public class MatchmakingService {
         // 无人等待，加入队列（需再次确认不重复）
         if (!isInQueue(userId)) {
             queue.add(new MatchRequest(userId, nickname));
-            log.info("Player {} ({}) added to matchmaking queue, queue size: {}", nickname, userId, queue.size());
+            log.info(
+                    "Player {} ({}) added to matchmaking queue, queue size: {}",
+                    nickname,
+                    userId,
+                    queue.size());
         }
         return MatchResult.waiting("已加入匹配队列，等待对手...");
     }
 
-    /**
-     * 取消匹配
-     */
+    /** 取消匹配 */
     public void cancelQueue(String userId) {
         queue.removeIf(r -> r.userId().equals(userId));
         matchResults.remove(userId);
@@ -96,31 +95,26 @@ public class MatchmakingService {
 
     /**
      * 查询匹配状态（供前端轮询）
+     *
      * @return 若已匹配返回 roomId，否则返回 null
      */
     public String checkMatchStatus(String userId) {
         return matchResults.remove(userId);
     }
 
-    /**
-     * 检查是否已在队列中
-     */
+    /** 检查是否已在队列中 */
     public boolean isInQueue(String userId) {
         return queue.stream().anyMatch(r -> r.userId().equals(userId));
     }
 
-    /**
-     * 获取队列大小
-     */
+    /** 获取队列大小 */
     public int getQueueSize() {
         return queue.size();
     }
 
     // ---- 内部 ----
 
-    /**
-     * 为两个匹配的玩家创建对战房间
-     */
+    /** 为两个匹配的玩家创建对战房间 */
     private String createMatchRoom(MatchRequest player1, MatchRequest player2) {
         String roomId = "match_" + System.currentTimeMillis();
         String roomName = "快速对战";
@@ -172,7 +166,11 @@ public class MatchmakingService {
         rp2.setReady(false);
         roomPlayerRepository.save(rp2);
 
-        log.info("Match room created: id={}, {} vs {}", roomId, player1.nickname(), player2.nickname());
+        log.info(
+                "Match room created: id={}, {} vs {}",
+                roomId,
+                player1.nickname(),
+                player2.nickname());
         return roomId;
     }
 
@@ -186,6 +184,7 @@ public class MatchmakingService {
         public static MatchResult waiting(String message) {
             return new MatchResult(false, null, message);
         }
+
         public static MatchResult matched(String roomId, String message) {
             return new MatchResult(true, roomId, message);
         }

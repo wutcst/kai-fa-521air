@@ -1,17 +1,16 @@
 package com.snake.util;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
-
-/**
- * JWT 工具类单元测试
- */
+/** JWT 工具类单元测试 */
 class JwtUtilTest {
 
     private JwtUtil jwtUtil;
-    private static final String TEST_SECRET = "test-secret-key-that-is-at-least-256-bits-long-for-hs512-algorithm!!";
+    private static final String TEST_SECRET =
+            "test-secret-key-that-is-at-least-256-bits-long-for-hs512-algorithm!!";
 
     @BeforeEach
     void setUp() {

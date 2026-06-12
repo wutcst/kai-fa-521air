@@ -2,12 +2,12 @@ package com.snake.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-/**
- * 认证响应
- */
+/** 认证响应 */
 @Schema(description = "登录/注册响应")
 public class AuthResponse {
-    @Schema(description = "JWT token（后续请求需在 Authorization 头携带）", example = "eyJhbGciOiJIUzUxMiJ9...")
+    @Schema(
+            description = "JWT token（后续请求需在 Authorization 头携带）",
+            example = "eyJhbGciOiJIUzUxMiJ9...")
     private String token;
 
     @Schema(description = "用户基本信息")
@@ -20,14 +20,23 @@ public class AuthResponse {
         this.user = user;
     }
 
-    public String getToken() { return token; }
-    public void setToken(String token) { this.token = token; }
-    public UserInfo getUser() { return user; }
-    public void setUser(UserInfo user) { this.user = user; }
+    public String getToken() {
+        return token;
+    }
 
-    /**
-     * 返回给前端的用户信息（不含密码）
-     */
+    public void setToken(String token) {
+        this.token = token;
+    }
+
+    public UserInfo getUser() {
+        return user;
+    }
+
+    public void setUser(UserInfo user) {
+        this.user = user;
+    }
+
+    /** 返回给前端的用户信息（不含密码） */
     @Schema(description = "用户基本信息")
     public static class UserInfo {
         @Schema(description = "用户ID", example = "1")
@@ -50,7 +59,13 @@ public class AuthResponse {
 
         public UserInfo() {}
 
-        public UserInfo(Long id, String username, String nickname, String avatar, int level, long totalScore) {
+        public UserInfo(
+                Long id,
+                String username,
+                String nickname,
+                String avatar,
+                int level,
+                long totalScore) {
             this.id = id;
             this.username = username;
             this.nickname = nickname;
@@ -59,17 +74,52 @@ public class AuthResponse {
             this.totalScore = totalScore;
         }
 
-        public Long getId() { return id; }
-        public void setId(Long id) { this.id = id; }
-        public String getUsername() { return username; }
-        public void setUsername(String username) { this.username = username; }
-        public String getNickname() { return nickname; }
-        public void setNickname(String nickname) { this.nickname = nickname; }
-        public String getAvatar() { return avatar; }
-        public void setAvatar(String avatar) { this.avatar = avatar; }
-        public int getLevel() { return level; }
-        public void setLevel(int level) { this.level = level; }
-        public long getTotalScore() { return totalScore; }
-        public void setTotalScore(long totalScore) { this.totalScore = totalScore; }
+        public Long getId() {
+            return id;
+        }
+
+        public void setId(Long id) {
+            this.id = id;
+        }
+
+        public String getUsername() {
+            return username;
+        }
+
+        public void setUsername(String username) {
+            this.username = username;
+        }
+
+        public String getNickname() {
+            return nickname;
+        }
+
+        public void setNickname(String nickname) {
+            this.nickname = nickname;
+        }
+
+        public String getAvatar() {
+            return avatar;
+        }
+
+        public void setAvatar(String avatar) {
+            this.avatar = avatar;
+        }
+
+        public int getLevel() {
+            return level;
+        }
+
+        public void setLevel(int level) {
+            this.level = level;
+        }
+
+        public long getTotalScore() {
+            return totalScore;
+        }
+
+        public void setTotalScore(long totalScore) {
+            this.totalScore = totalScore;
+        }
     }
 }

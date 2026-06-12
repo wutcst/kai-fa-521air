@@ -3,13 +3,11 @@ package com.snake.entity;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
-/**
- * 玩家成绩实体
- */
+/** 玩家成绩实体 */
 @Entity
-@Table(name = "game_player_result", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"game_id", "user_id"})
-})
+@Table(
+        name = "game_player_result",
+        uniqueConstraints = {@UniqueConstraint(columnNames = {"game_id", "user_id"})})
 public class GamePlayerResult {
 
     @Id
@@ -52,35 +50,87 @@ public class GamePlayerResult {
     }
 
     // Getters and Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public Long getGameId() { return gameId; }
-    public void setGameId(Long gameId) { this.gameId = gameId; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getUserId() { return userId; }
-    public void setUserId(String userId) { this.userId = userId; }
+    public Long getGameId() {
+        return gameId;
+    }
 
-    public int getScore() { return score; }
-    public void setScore(int score) { this.score = score; }
+    public void setGameId(Long gameId) {
+        this.gameId = gameId;
+    }
 
-    public int getKills() { return kills; }
-    public void setKills(int kills) { this.kills = kills; }
+    public String getUserId() {
+        return userId;
+    }
 
-    public int getSnakeLength() { return snakeLength; }
-    public void setSnakeLength(int snakeLength) { this.snakeLength = snakeLength; }
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
 
-    public double getSurvivalTime() { return survivalTime; }
-    public void setSurvivalTime(double survivalTime) { this.survivalTime = survivalTime; }
+    public int getScore() {
+        return score;
+    }
 
-    public boolean isAlive() { return isAlive; }
-    public void setAlive(boolean isAlive) { this.isAlive = isAlive; }
+    public void setScore(int score) {
+        this.score = score;
+    }
 
-    public boolean isBot() { return isBot; }
-    public void setBot(boolean isBot) { this.isBot = isBot; }
+    public int getKills() {
+        return kills;
+    }
 
-    public int getRank() { return rank; }
-    public void setRank(int rank) { this.rank = rank; }
+    public void setKills(int kills) {
+        this.kills = kills;
+    }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
+    public int getSnakeLength() {
+        return snakeLength;
+    }
+
+    public void setSnakeLength(int snakeLength) {
+        this.snakeLength = snakeLength;
+    }
+
+    public double getSurvivalTime() {
+        return survivalTime;
+    }
+
+    public void setSurvivalTime(double survivalTime) {
+        this.survivalTime = survivalTime;
+    }
+
+    public boolean isAlive() {
+        return isAlive;
+    }
+
+    public void setAlive(boolean isAlive) {
+        this.isAlive = isAlive;
+    }
+
+    public boolean isBot() {
+        return isBot;
+    }
+
+    public void setBot(boolean isBot) {
+        this.isBot = isBot;
+    }
+
+    public int getRank() {
+        return rank;
+    }
+
+    public void setRank(int rank) {
+        this.rank = rank;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
 }

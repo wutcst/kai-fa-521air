@@ -1,15 +1,12 @@
 package com.snake.repository;
 
 import com.snake.entity.RoomPlayer;
+import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-import java.util.Optional;
-
-/**
- * 房间玩家关联数据访问接口
- */
+/** 房间玩家关联数据访问接口 */
 @Repository
 public interface RoomPlayerRepository extends JpaRepository<RoomPlayer, Long> {
 

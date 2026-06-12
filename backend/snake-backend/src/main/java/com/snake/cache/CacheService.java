@@ -1,19 +1,14 @@
 package com.snake.cache;
 
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
-/**
- * Redis 缓存服务
- * 为贪吃蛇游戏提供在线计数、房间缓存、会话管理等能力
- */
+/** Redis 缓存服务 为贪吃蛇游戏提供在线计数、房间缓存、会话管理等能力 */
 @Service
 public class CacheService {
 
@@ -29,8 +24,8 @@ public class CacheService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final StringRedisTemplate stringRedisTemplate;
 
-    public CacheService(RedisTemplate<String, Object> redisTemplate,
-                        StringRedisTemplate stringRedisTemplate) {
+    public CacheService(
+            RedisTemplate<String, Object> redisTemplate, StringRedisTemplate stringRedisTemplate) {
         this.redisTemplate = redisTemplate;
         this.stringRedisTemplate = stringRedisTemplate;
     }
@@ -60,10 +55,9 @@ public class CacheService {
     // Maps WS sessionId -> roomId:playerId for multi-instance support
 
     public void saveSession(String wsSessionId, String roomId, String playerId) {
-        stringRedisTemplate.opsForValue().set(
-            KEY_SESSION + wsSessionId,
-            roomId + ":" + playerId,
-            30, TimeUnit.MINUTES);
+        stringRedisTemplate
+                .opsForValue()
+                .set(KEY_SESSION + wsSessionId, roomId + ":" + playerId, 30, TimeUnit.MINUTES);
     }
 
     public String getSessionRoom(String wsSessionId) {
@@ -85,8 +79,7 @@ public class CacheService {
     // ==================== Room Cache ====================
 
     public void cacheRoomSummary(String roomId, Map<String, Object> summary) {
-        redisTemplate.opsForValue().set(
-            KEY_ROOM + roomId, summary, 1, TimeUnit.HOURS);
+        redisTemplate.opsForValue().set(KEY_ROOM + roomId, summary, 1, TimeUnit.HOURS);
     }
 
     @SuppressWarnings("unchecked")
@@ -152,8 +145,7 @@ public class CacheService {
 
     public boolean ping() {
         try {
-            return "PONG".equals(stringRedisTemplate.getConnectionFactory()
-                    .getConnection().ping());
+            return "PONG".equals(stringRedisTemplate.getConnectionFactory().getConnection().ping());
         } catch (Exception e) {
             log.warn("Redis ping failed: {}", e.getMessage());
             return false;

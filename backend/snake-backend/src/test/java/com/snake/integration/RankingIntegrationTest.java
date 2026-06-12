@@ -1,20 +1,17 @@
 package com.snake.integration;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.snake.entity.GameEntity;
 import com.snake.entity.GamePlayerResult;
 import com.snake.entity.SysUser;
+import java.time.LocalDateTime;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.*;
 
-import java.time.LocalDateTime;
-import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.*;
-
-/**
- * 排行榜 API 集成测试
- */
+/** 排行榜 API 集成测试 */
 class RankingIntegrationTest extends BaseIntegrationTest {
 
     @BeforeEach
@@ -80,8 +77,8 @@ class RankingIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getOverallRanking_ShouldReturnList() {
-        ResponseEntity<Map> response = restTemplate.getForEntity(
-                baseUrl() + "/api/ranking", Map.class);
+        ResponseEntity<Map> response =
+                restTemplate.getForEntity(baseUrl() + "/api/ranking", Map.class);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody().get("list"));
@@ -89,8 +86,8 @@ class RankingIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getMultiRanking_ShouldReturnList() {
-        ResponseEntity<Map> response = restTemplate.getForEntity(
-                baseUrl() + "/api/ranking?mode=multi", Map.class);
+        ResponseEntity<Map> response =
+                restTemplate.getForEntity(baseUrl() + "/api/ranking?mode=multi", Map.class);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody().get("list"));
@@ -98,8 +95,8 @@ class RankingIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getSingleRanking_ShouldReturnList() {
-        ResponseEntity<Map> response = restTemplate.getForEntity(
-                baseUrl() + "/api/ranking?mode=single", Map.class);
+        ResponseEntity<Map> response =
+                restTemplate.getForEntity(baseUrl() + "/api/ranking?mode=single", Map.class);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody().get("list"));
@@ -112,8 +109,9 @@ class RankingIntegrationTest extends BaseIntegrationTest {
             fail("No users found - test data not set up");
         }
 
-        ResponseEntity<Map> response = restTemplate.getForEntity(
-                baseUrl() + "/api/ranking/user/" + anyUser.getId(), Map.class);
+        ResponseEntity<Map> response =
+                restTemplate.getForEntity(
+                        baseUrl() + "/api/ranking/user/" + anyUser.getId(), Map.class);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody().get("overallRank"));
@@ -122,8 +120,8 @@ class RankingIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getRanking_WithPagination_ShouldRespectPageSize() {
-        ResponseEntity<Map> response = restTemplate.getForEntity(
-                baseUrl() + "/api/ranking?page=1&size=5", Map.class);
+        ResponseEntity<Map> response =
+                restTemplate.getForEntity(baseUrl() + "/api/ranking?page=1&size=5", Map.class);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         Map<String, Object> body = response.getBody();

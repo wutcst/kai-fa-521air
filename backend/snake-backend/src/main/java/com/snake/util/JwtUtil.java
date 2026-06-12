@@ -4,20 +4,15 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import javax.crypto.SecretKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
-import java.util.Date;
-
-/**
- * JWT 工具类
- * 生成和验证登录令牌
- * 注意：Spring Boot 4.0.x / Spring Security 7.x 环境下测试
- */
+/** JWT 工具类 生成和验证登录令牌 注意：Spring Boot 4.0.x / Spring Security 7.x 环境下测试 */
 @Component
 public class JwtUtil {
 
@@ -27,10 +22,14 @@ public class JwtUtil {
     private final long expirationMs;
 
     public JwtUtil(
-            @Value("${jwt.secret:snake-game-default-secret-key-change-in-production-123456}") String secret,
+            @Value("${jwt.secret:snake-game-default-secret-key-change-in-production-123456}")
+                    String secret,
             @Value("${jwt.expiration-ms:86400000}") long expirationMs) {
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
-        log.info("JwtUtil: secret length={} bytes, first 8 chars='{}'", keyBytes.length, secret.substring(0, Math.min(8, secret.length())));
+        log.info(
+                "JwtUtil: secret length={} bytes, first 8 chars='{}'",
+                keyBytes.length,
+                secret.substring(0, Math.min(8, secret.length())));
         this.secretKey = Keys.hmacShaKeyFor(keyBytes);
         this.expirationMs = expirationMs;
     }
@@ -84,10 +83,6 @@ public class JwtUtil {
     }
 
     private Claims parseToken(String token) {
-        return Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+        return Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload();
     }
 }

@@ -3,9 +3,7 @@ package com.snake.entity;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
-/**
- * 游戏会话实体
- */
+/** 游戏会话实体 */
 @Entity
 @Table(name = "game")
 public class GameEntity {
@@ -44,29 +42,71 @@ public class GameEntity {
     }
 
     // Getters and Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getRoomId() { return roomId; }
-    public void setRoomId(String roomId) { this.roomId = roomId; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getGameMode() { return gameMode; }
-    public void setGameMode(String gameMode) { this.gameMode = gameMode; }
+    public String getRoomId() {
+        return roomId;
+    }
 
-    public int getDuration() { return duration; }
-    public void setDuration(int duration) { this.duration = duration; }
+    public void setRoomId(String roomId) {
+        this.roomId = roomId;
+    }
 
-    public int getPlayerCount() { return playerCount; }
-    public void setPlayerCount(int playerCount) { this.playerCount = playerCount; }
+    public String getGameMode() {
+        return gameMode;
+    }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public void setGameMode(String gameMode) {
+        this.gameMode = gameMode;
+    }
 
-    public LocalDateTime getStartedAt() { return startedAt; }
-    public void setStartedAt(LocalDateTime startedAt) { this.startedAt = startedAt; }
+    public int getDuration() {
+        return duration;
+    }
 
-    public LocalDateTime getEndedAt() { return endedAt; }
-    public void setEndedAt(LocalDateTime endedAt) { this.endedAt = endedAt; }
+    public void setDuration(int duration) {
+        this.duration = duration;
+    }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
+    public int getPlayerCount() {
+        return playerCount;
+    }
+
+    public void setPlayerCount(int playerCount) {
+        this.playerCount = playerCount;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public LocalDateTime getStartedAt() {
+        return startedAt;
+    }
+
+    public void setStartedAt(LocalDateTime startedAt) {
+        this.startedAt = startedAt;
+    }
+
+    public LocalDateTime getEndedAt() {
+        return endedAt;
+    }
+
+    public void setEndedAt(LocalDateTime endedAt) {
+        this.endedAt = endedAt;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
 }

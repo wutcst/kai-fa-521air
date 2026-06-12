@@ -2,7 +2,6 @@ package com.snake.room;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.snake.entity.RoomEntity;
 import com.snake.game.GameEngine;
 import com.snake.game.GameEngine.GameEvent;
 import com.snake.game.GameEngine.GameMode;
@@ -13,12 +12,14 @@ import com.snake.game.GameEngine.ScoreEntry;
 import com.snake.game.GameEngine.SnakeState;
 import com.snake.repository.RoomRepository;
 import com.snake.service.GameService;
+import jakarta.annotation.PreDestroy;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -29,16 +30,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
-import java.util.WeakHashMap;
-import jakarta.annotation.PreDestroy;
 
 @Service
 public class RoomManager {
     private static final Logger log = LoggerFactory.getLogger(RoomManager.class);
     private static final int COUNTDOWN_SECONDS = 3;
-    private static final List<String> BOT_NAMES = List.of(
-        "Swift", "Chaser", "Viper", "Shadow", "Blaze", "Nova", "Echo", "Rogue"
-    );
+    private static final List<String> BOT_NAMES =
+            List.of("Swift", "Chaser", "Viper", "Shadow", "Blaze", "Nova", "Echo", "Rogue");
 
     private final ObjectMapper objectMapper;
     private final GameService gameService;
@@ -46,10 +44,12 @@ public class RoomManager {
     private final Map<String, Room> rooms = new ConcurrentHashMap<>();
     private final Map<String, SessionRef> sessionIndex = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);
+
     /** 每个 WebSocket Session 的锁对象，防止并发写导致 TEXT_PARTIAL_WRITING */
     private final Map<WebSocketSession, Object> sessionLocks = new WeakHashMap<>();
 
-    public RoomManager(ObjectMapper objectMapper, GameService gameService, RoomRepository roomRepository) {
+    public RoomManager(
+            ObjectMapper objectMapper, GameService gameService, RoomRepository roomRepository) {
         this.objectMapper = objectMapper;
         this.gameService = gameService;
         this.roomRepository = roomRepository;
@@ -70,12 +70,14 @@ public class RoomManager {
 
         Room room = rooms.computeIfAbsent(roomId, id -> createRoom(id, request));
         synchronized (room.getLock()) {
-            if (room.getStatus() == RoomStatus.PLAYING && !room.getPlayers().containsKey(playerId)) {
+            if (room.getStatus() == RoomStatus.PLAYING
+                    && !room.getPlayers().containsKey(playerId)) {
                 sendError(session, "room is playing");
                 return;
             }
-            if (room.isHasPassword() && room.getPassword() != null
-                && !Objects.equals(room.getPassword(), request.password())) {
+            if (room.isHasPassword()
+                    && room.getPassword() != null
+                    && !Objects.equals(room.getPassword(), request.password())) {
                 sendError(session, "invalid password");
                 return;
             }
@@ -89,11 +91,15 @@ public class RoomManager {
                         Player existingHost = room.getPlayers().get(room.getHostId());
                         if (existingHost != null && existingHost.getSession() == null) {
                             // 确认是房主重连：将当前 session 绑定到房主的真实 playerId
-                            log.info("Host reconnecting: session bound to hostId={} (request playerId={}) in room {}",
-                                    room.getHostId(), playerId, roomId);
+                            log.info(
+                                    "Host reconnecting: session bound to hostId={} (request playerId={}) in room {}",
+                                    room.getHostId(),
+                                    playerId,
+                                    roomId);
                             existingHost.setSession(session);
                             existingHost.setNickname(safeName(request.nickname()));
-                            sessionIndex.put(session.getId(), new SessionRef(roomId, room.getHostId()));
+                            sessionIndex.put(
+                                    session.getId(), new SessionRef(roomId, room.getHostId()));
                             broadcastRoomUpdate(room);
                             broadcastSystem(room, existingHost.getNickname() + " joined the room");
                             return;
@@ -103,7 +109,13 @@ public class RoomManager {
                     return;
                 }
                 boolean isHost = room.getHostId() == null || request.create();
-                Player player = new Player(playerId, safeName(request.nickname()), request.avatar(), request.level(), isHost);
+                Player player =
+                        new Player(
+                                playerId,
+                                safeName(request.nickname()),
+                                request.avatar(),
+                                request.level(),
+                                isHost);
                 player.setSession(session);
                 room.getPlayers().put(playerId, player);
                 if (isHost) {
@@ -148,7 +160,11 @@ public class RoomManager {
                 room.getEngine().eliminatePlayer(removed.getId(), "left room");
             }
             if (Objects.equals(room.getHostId(), ref.playerId())) {
-                room.setHostId(room.getPlayers().values().stream().findFirst().map(Player::getId).orElse(null));
+                room.setHostId(
+                        room.getPlayers().values().stream()
+                                .findFirst()
+                                .map(Player::getId)
+                                .orElse(null));
                 for (Player player : room.getPlayers().values()) {
                     player.setHost(Objects.equals(player.getId(), room.getHostId()));
                 }
@@ -178,7 +194,10 @@ public class RoomManager {
                 return;
             }
 
-            String targetId = request != null && request.targetPlayerId() != null ? request.targetPlayerId() : actor.getId();
+            String targetId =
+                    request != null && request.targetPlayerId() != null
+                            ? request.targetPlayerId()
+                            : actor.getId();
             if (!Objects.equals(targetId, actor.getId()) && !actor.isHost()) {
                 sendError(session, "only host can change others");
                 return;
@@ -189,11 +208,13 @@ public class RoomManager {
                 return;
             }
 
-            boolean nextReady = request != null && request.ready() != null
-                ? request.ready()
-                : !target.isReady();
+            boolean nextReady =
+                    request != null && request.ready() != null
+                            ? request.ready()
+                            : !target.isReady();
             target.setReady(nextReady);
-            broadcastSystem(room, target.getNickname() + (nextReady ? " is ready" : " is not ready"));
+            broadcastSystem(
+                    room, target.getNickname() + (nextReady ? " is ready" : " is not ready"));
         }
 
         broadcastRoomUpdate(room);
@@ -256,7 +277,8 @@ public class RoomManager {
                         sendError(session, "need at least 2 players");
                         return;
                     }
-                    boolean allReady = room.getPlayers().values().stream().allMatch(Player::isReady);
+                    boolean allReady =
+                            room.getPlayers().values().stream().allMatch(Player::isReady);
                     if (!allReady) {
                         sendError(session, "not all players ready");
                         return;
@@ -276,7 +298,8 @@ public class RoomManager {
         if (room == null || room.getEngine() == null) {
             return;
         }
-        room.getEngine().setDirection(ref.playerId(), GameEngine.Direction.from(request.direction()));
+        room.getEngine()
+                .setDirection(ref.playerId(), GameEngine.Direction.from(request.direction()));
     }
 
     public void chat(WebSocketSession session, ChatRequest request) {
@@ -323,7 +346,11 @@ public class RoomManager {
                 room.getEngine().eliminatePlayer(removed.getId(), "disconnected");
             }
             if (Objects.equals(room.getHostId(), ref.playerId())) {
-                room.setHostId(room.getPlayers().values().stream().findFirst().map(Player::getId).orElse(null));
+                room.setHostId(
+                        room.getPlayers().values().stream()
+                                .findFirst()
+                                .map(Player::getId)
+                                .orElse(null));
                 for (Player player : room.getPlayers().values()) {
                     player.setHost(Objects.equals(player.getId(), room.getHostId()));
                 }
@@ -342,8 +369,8 @@ public class RoomManager {
     }
 
     /**
-     * 将已构造好的房间注册到 RoomManager（供 MatchmakingService 等外部服务使用）
-     * 房间内的玩家此时没有 WebSocket 会话，后续通过 join_room 绑定
+     * 将已构造好的房间注册到 RoomManager（供 MatchmakingService 等外部服务使用） 房间内的玩家此时没有 WebSocket 会话，后续通过 join_room
+     * 绑定
      */
     public void registerRoom(Room room) {
         // 清理所有玩家在旧房间中的残留（防止快速匹配玩家同时存在于多个房间）
@@ -351,8 +378,11 @@ public class RoomManager {
             removePlayerFromAllRoomsExcept(playerId, room.getId(), null);
         }
         rooms.put(room.getId(), room);
-        log.info("Room registered in RoomManager: id={}, name={}, players={}",
-                room.getId(), room.getName(), room.getPlayers().size());
+        log.info(
+                "Room registered in RoomManager: id={}, name={}, players={}",
+                room.getId(),
+                room.getName(),
+                room.getPlayers().size());
     }
 
     public int getOnlineCount() {
@@ -379,7 +409,8 @@ public class RoomManager {
                 }
             }
             if (modeFilter != null && !"all".equals(modeFilter)) {
-                if (summary.gameMode() == null || !modeFilter.equalsIgnoreCase(summary.gameMode())) {
+                if (summary.gameMode() == null
+                        || !modeFilter.equalsIgnoreCase(summary.gameMode())) {
                     continue;
                 }
             }
@@ -399,20 +430,23 @@ public class RoomManager {
         return new RoomListResponse(pageList, total, page, size);
     }
 
-    /**
-     * 获取房间对象（包含密码等完整信息）
-     */
+    /** 获取房间对象（包含密码等完整信息） */
     public Room getRoomById(String roomId) {
         return rooms.get(roomId);
     }
 
-    /**
-     * 通过 REST API 创建房间时，向 RoomManager 注册房间，
-     * 使其出现在实时房间列表中，并允许后续 WebSocket 连接加入。
-     */
-    public void registerRoom(String roomId, String name, String hostId, String nickname,
-                              String gameMode, int maxPlayers, int gameDuration,
-                              boolean hasPassword, String password, boolean allowBots) {
+    /** 通过 REST API 创建房间时，向 RoomManager 注册房间， 使其出现在实时房间列表中，并允许后续 WebSocket 连接加入。 */
+    public void registerRoom(
+            String roomId,
+            String name,
+            String hostId,
+            String nickname,
+            String gameMode,
+            int maxPlayers,
+            int gameDuration,
+            boolean hasPassword,
+            String password,
+            boolean allowBots) {
         // ===== 关键修复：创建新房间前，先从旧房间中移除房主 =====
         // 防止房主同时存在于多个房间（上局残留导致旧房间玩家出现在新房间）
         removePlayerFromAllRoomsExcept(hostId, roomId, null);
@@ -449,22 +483,27 @@ public class RoomManager {
         broadcast(room, "countdown", Map.of("seconds", COUNTDOWN_SECONDS));
         broadcastRoomUpdate(room);
 
-        ScheduledFuture<?> task = scheduler.scheduleAtFixedRate(() -> {
-            synchronized (room.getLock()) {
-                int next = room.getCountdownSeconds() - 1;
-                room.setCountdownSeconds(next);
-                if (next <= 0) {
-                    ScheduledFuture<?> current = room.getCountdownTask();
-                    if (current != null) {
-                        current.cancel(false);
-                    }
-                    room.setCountdownTask(null);
-                    beginGame(room);
-                } else {
-                    broadcast(room, "countdown", Map.of("seconds", next));
-                }
-            }
-        }, 1, 1, TimeUnit.SECONDS);
+        ScheduledFuture<?> task =
+                scheduler.scheduleAtFixedRate(
+                        () -> {
+                            synchronized (room.getLock()) {
+                                int next = room.getCountdownSeconds() - 1;
+                                room.setCountdownSeconds(next);
+                                if (next <= 0) {
+                                    ScheduledFuture<?> current = room.getCountdownTask();
+                                    if (current != null) {
+                                        current.cancel(false);
+                                    }
+                                    room.setCountdownTask(null);
+                                    beginGame(room);
+                                } else {
+                                    broadcast(room, "countdown", Map.of("seconds", next));
+                                }
+                            }
+                        },
+                        1,
+                        1,
+                        TimeUnit.SECONDS);
         room.setCountdownTask(task);
     }
 
@@ -472,7 +511,9 @@ public class RoomManager {
         room.setStatus(RoomStatus.PLAYING);
         broadcastRoomUpdate(room);
         List<PlayerSeed> seeds = new ArrayList<>();
-        room.getPlayers().values().forEach(p -> seeds.add(new PlayerSeed(p.getId(), p.getNickname(), false)));
+        room.getPlayers()
+                .values()
+                .forEach(p -> seeds.add(new PlayerSeed(p.getId(), p.getNickname(), false)));
 
         if (room.isAllowBots() && room.getPlayers().size() < room.getMaxPlayers()) {
             int botsToAdd = room.getMaxPlayers() - room.getPlayers().size();
@@ -483,36 +524,51 @@ public class RoomManager {
             }
         }
 
-        log.info("Starting game engine for room {} with {} players (mode={})", room.getId(), seeds.size(), room.getGameMode());
-        GameEngine engine = new GameEngine(GameMode.from(room.getGameMode()), room.getGameDuration(), seeds);
+        log.info(
+                "Starting game engine for room {} with {} players (mode={})",
+                room.getId(),
+                seeds.size(),
+                room.getGameMode());
+        GameEngine engine =
+                new GameEngine(GameMode.from(room.getGameMode()), room.getGameDuration(), seeds);
         room.setEngine(engine);
         room.setStartedAt(LocalDateTime.now());
 
         engine.start(
-            scheduler,
-            state -> broadcastGameState(room, state),
-            event -> broadcastEvent(room, event),
-            result -> handleGameOver(room, result)
-        );
+                scheduler,
+                state -> broadcastGameState(room, state),
+                event -> broadcastEvent(room, event),
+                result -> handleGameOver(room, result));
 
         log.info("Game engine started for room {}", room.getId());
-        broadcast(room, "game_start", Map.of("roomId", room.getId(), "gameMode", room.getGameMode()));
+        broadcast(
+                room, "game_start", Map.of("roomId", room.getId(), "gameMode", room.getGameMode()));
     }
 
     private void handleGameOver(Room room, GameResult result) {
-        log.info("handleGameOver: room={}, mode={}, rankings={}", room.getId(), result.gameMode(), result.rankings().size());
+        log.info(
+                "handleGameOver: room={}, mode={}, rankings={}",
+                room.getId(),
+                result.gameMode(),
+                result.rankings().size());
         room.setStatus(RoomStatus.FINISHED);
         broadcastRoomUpdate(room);
 
         // 同步更新数据库中房间状态为 finished
         try {
-            roomRepository.findById(room.getId()).ifPresent(r -> {
-                r.setStatus("finished");
-                roomRepository.save(r);
-            });
+            roomRepository
+                    .findById(room.getId())
+                    .ifPresent(
+                            r -> {
+                                r.setStatus("finished");
+                                roomRepository.save(r);
+                            });
             log.info("Room status updated to finished in DB: {}", room.getId());
         } catch (Exception e) {
-            log.error("Failed to update room status in DB for room {}: {}", room.getId(), e.getMessage());
+            log.error(
+                    "Failed to update room status in DB for room {}: {}",
+                    room.getId(),
+                    e.getMessage());
         }
 
         // 持久化游戏结果到数据库，获取真实的数据库 gameId
@@ -522,14 +578,23 @@ public class RoomManager {
             dbGameId = saved.getId();
             log.info("Game result saved to DB: gameId={}, room={}", dbGameId, room.getId());
         } catch (Exception e) {
-            log.error("Failed to persist game result for room {}: {}", room.getId(), e.getMessage(), e);
+            log.error(
+                    "Failed to persist game result for room {}: {}",
+                    room.getId(),
+                    e.getMessage(),
+                    e);
         }
 
         // 使用真实的数据库 ID 发送 game_over 给每个玩家
         final String realGameId = dbGameId != null ? String.valueOf(dbGameId) : result.gameId();
         for (Player player : room.getPlayers().values()) {
             GameResult decorated = decorateResultForPlayer(result, player.getId());
-            GameResult withRealId = new GameResult(realGameId, decorated.duration(), decorated.rankings(), decorated.gameMode());
+            GameResult withRealId =
+                    new GameResult(
+                            realGameId,
+                            decorated.duration(),
+                            decorated.rankings(),
+                            decorated.gameMode());
             send(player.getSession(), "game_over", withRealId);
         }
     }
@@ -549,66 +614,70 @@ public class RoomManager {
         Map<String, SnakeState> snakes = new LinkedHashMap<>();
         for (Map.Entry<String, SnakeState> entry : snapshot.snakes().entrySet()) {
             SnakeState s = entry.getValue();
-            snakes.put(entry.getKey(), new SnakeState(
-                s.id(),
-                s.body(),
-                s.direction(),
-                s.color(),
-                s.score(),
-                s.kills(),
-                s.length(),
-                s.isAlive(),
-                s.nickname(),
-                s.speedBoost(),
-                s.shield(),
-                s.magnet(),
-                Objects.equals(entry.getKey(), playerId)
-            ));
+            snakes.put(
+                    entry.getKey(),
+                    new SnakeState(
+                            s.id(),
+                            s.body(),
+                            s.direction(),
+                            s.color(),
+                            s.score(),
+                            s.kills(),
+                            s.length(),
+                            s.isAlive(),
+                            s.nickname(),
+                            s.speedBoost(),
+                            s.shield(),
+                            s.magnet(),
+                            Objects.equals(entry.getKey(), playerId)));
         }
 
-        List<ScoreEntry> scoreBoard = snapshot.scoreBoard().stream()
-            .map(entry -> new ScoreEntry(
-                entry.id(),
-                entry.nickname(),
-                entry.score(),
-                entry.kills(),
-                entry.length(),
-                entry.isAlive(),
-                entry.survivalTime(),
-                Objects.equals(entry.id(), playerId),
-                entry.color()
-            ))
-            .toList();
+        List<ScoreEntry> scoreBoard =
+                snapshot.scoreBoard().stream()
+                        .map(
+                                entry ->
+                                        new ScoreEntry(
+                                                entry.id(),
+                                                entry.nickname(),
+                                                entry.score(),
+                                                entry.kills(),
+                                                entry.length(),
+                                                entry.isAlive(),
+                                                entry.survivalTime(),
+                                                Objects.equals(entry.id(), playerId),
+                                                entry.color()))
+                        .toList();
 
         return new GameStateSnapshot(
-            snakes,
-            snapshot.foods(),
-            snapshot.items(),
-            snapshot.obstacles(),
-            scoreBoard,
-            snapshot.gameTime(),
-            snapshot.totalTime(),
-            snapshot.gameStatus(),
-            snapshot.mapWidth(),
-            snapshot.mapHeight(),
-            snapshot.gridSize()
-        );
+                snakes,
+                snapshot.foods(),
+                snapshot.items(),
+                snapshot.obstacles(),
+                scoreBoard,
+                snapshot.gameTime(),
+                snapshot.totalTime(),
+                snapshot.gameStatus(),
+                snapshot.mapWidth(),
+                snapshot.mapHeight(),
+                snapshot.gridSize());
     }
 
     private GameResult decorateResultForPlayer(GameResult result, String playerId) {
-        List<ScoreEntry> decorated = result.rankings().stream()
-            .map(entry -> new ScoreEntry(
-                entry.id(),
-                entry.nickname(),
-                entry.score(),
-                entry.kills(),
-                entry.length(),
-                entry.isAlive(),
-                entry.survivalTime(),
-                Objects.equals(entry.id(), playerId),
-                entry.color()
-            ))
-            .toList();
+        List<ScoreEntry> decorated =
+                result.rankings().stream()
+                        .map(
+                                entry ->
+                                        new ScoreEntry(
+                                                entry.id(),
+                                                entry.nickname(),
+                                                entry.score(),
+                                                entry.kills(),
+                                                entry.length(),
+                                                entry.isAlive(),
+                                                entry.survivalTime(),
+                                                Objects.equals(entry.id(), playerId),
+                                                entry.color()))
+                        .toList();
         return new GameResult(result.gameId(), result.duration(), decorated, result.gameMode());
     }
 
@@ -625,18 +694,20 @@ public class RoomManager {
         roomInfo.put("gameMode", room.getGameMode());
         roomInfo.put("allowBots", room.isAllowBots());
 
-        List<Map<String, Object>> players = room.getPlayers().values().stream()
-            .map(player -> {
-                Map<String, Object> data = new LinkedHashMap<>();
-                data.put("id", player.getId());
-                data.put("nickname", player.getNickname());
-                data.put("avatar", player.getAvatar());
-                data.put("level", player.getLevel());
-                data.put("isHost", player.isHost());
-                data.put("isReady", player.isReady());
-                return data;
-            })
-            .toList();
+        List<Map<String, Object>> players =
+                room.getPlayers().values().stream()
+                        .map(
+                                player -> {
+                                    Map<String, Object> data = new LinkedHashMap<>();
+                                    data.put("id", player.getId());
+                                    data.put("nickname", player.getNickname());
+                                    data.put("avatar", player.getAvatar());
+                                    data.put("level", player.getLevel());
+                                    data.put("isHost", player.isHost());
+                                    data.put("isReady", player.isReady());
+                                    return data;
+                                })
+                        .toList();
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("roomId", room.getId());
@@ -738,15 +809,23 @@ public class RoomManager {
             // 如果房间已经结束或被清理，确保数据库状态同步为 finished
             if (room.getStatus() == RoomStatus.FINISHED || room.getStatus() == RoomStatus.PLAYING) {
                 try {
-                    roomRepository.findById(room.getId()).ifPresent(r -> {
-                        if (!"finished".equals(r.getStatus())) {
-                            r.setStatus("finished");
-                            roomRepository.save(r);
-                            log.info("Room {} DB status synced to finished during cleanup", room.getId());
-                        }
-                    });
+                    roomRepository
+                            .findById(room.getId())
+                            .ifPresent(
+                                    r -> {
+                                        if (!"finished".equals(r.getStatus())) {
+                                            r.setStatus("finished");
+                                            roomRepository.save(r);
+                                            log.info(
+                                                    "Room {} DB status synced to finished during cleanup",
+                                                    room.getId());
+                                        }
+                                    });
                 } catch (Exception e) {
-                    log.error("Failed to sync room status during cleanup for {}: {}", room.getId(), e.getMessage());
+                    log.error(
+                            "Failed to sync room status during cleanup for {}: {}",
+                            room.getId(),
+                            e.getMessage());
                 }
             }
             rooms.remove(room.getId());
@@ -756,12 +835,9 @@ public class RoomManager {
         }
     }
 
-    /**
-     * 从所有房间中移除指定玩家（除了 excludeRoomId 指定的房间）。
-     * 用于玩家切换房间时，确保不会同时存在于多个房间。
-     * 如果旧房间变空，会自动清理。
-     */
-    private void removePlayerFromAllRoomsExcept(String playerId, String excludeRoomId, WebSocketSession newSession) {
+    /** 从所有房间中移除指定玩家（除了 excludeRoomId 指定的房间）。 用于玩家切换房间时，确保不会同时存在于多个房间。 如果旧房间变空，会自动清理。 */
+    private void removePlayerFromAllRoomsExcept(
+            String playerId, String excludeRoomId, WebSocketSession newSession) {
         List<Room> affectedRooms = new ArrayList<>();
         for (Room r : rooms.values()) {
             if (r.getId().equals(excludeRoomId)) {
@@ -772,16 +848,22 @@ public class RoomManager {
                 removed = r.getPlayers().remove(playerId);
             }
             if (removed != null) {
-                log.info("Player {} removed from old room {} (joining new room {})",
-                        playerId, r.getId(), excludeRoomId);
+                log.info(
+                        "Player {} removed from old room {} (joining new room {})",
+                        playerId,
+                        r.getId(),
+                        excludeRoomId);
                 // 如果该玩家正在游戏中（引擎存在），消除他
                 if (r.getEngine() != null) {
                     r.getEngine().eliminatePlayer(playerId, "switched room");
                 }
                 // 如果移除的是房主，转移房主
                 if (Objects.equals(r.getHostId(), playerId)) {
-                    r.setHostId(r.getPlayers().values().stream()
-                            .findFirst().map(Player::getId).orElse(null));
+                    r.setHostId(
+                            r.getPlayers().values().stream()
+                                    .findFirst()
+                                    .map(Player::getId)
+                                    .orElse(null));
                     for (Player p : r.getPlayers().values()) {
                         p.setHost(Objects.equals(p.getId(), r.getHostId()));
                     }
@@ -808,28 +890,30 @@ public class RoomManager {
             }
         }
         return new RoomSummary(
-            room.getId(),
-            room.getName(),
-            room.getHostId(),
-            hostName,
-            playerCount,
-            room.getMaxPlayers(),
-            status,
-            room.isHasPassword(),
-            room.getGameDuration(),
-            room.getGameMode(),
-            room.isAllowBots()
-        );
+                room.getId(),
+                room.getName(),
+                room.getHostId(),
+                hostName,
+                playerCount,
+                room.getMaxPlayers(),
+                status,
+                room.isHasPassword(),
+                room.getGameDuration(),
+                room.getGameMode(),
+                room.isAllowBots());
     }
 
     private String computeStatus(Room room, int playerCount) {
-        String status = switch (room.getStatus()) {
-            case PLAYING -> "playing";
-            case FINISHED -> "finished";
-            case COUNTDOWN -> "waiting";
-            case WAITING -> "waiting";
-        };
-        if (!"playing".equals(status) && !"finished".equals(status) && playerCount >= room.getMaxPlayers()) {
+        String status =
+                switch (room.getStatus()) {
+                    case PLAYING -> "playing";
+                    case FINISHED -> "finished";
+                    case COUNTDOWN -> "waiting";
+                    case WAITING -> "waiting";
+                };
+        if (!"playing".equals(status)
+                && !"finished".equals(status)
+                && playerCount >= room.getMaxPlayers()) {
             return "full";
         }
         return status;
@@ -839,68 +923,54 @@ public class RoomManager {
         return value == null ? null : value.trim().toLowerCase();
     }
 
-    private record SessionRef(String roomId, String playerId) {
-    }
+    private record SessionRef(String roomId, String playerId) {}
 
     public record JoinRoomRequest(
-        String roomId,
-        String roomName,
-        String playerId,
-        String nickname,
-        String avatar,
-        int level,
-        String gameMode,
-        int maxPlayers,
-        int gameDuration,
-        boolean hasPassword,
-        String password,
-        boolean create,
-        boolean allowBots
-    ) {
-    }
+            String roomId,
+            String roomName,
+            String playerId,
+            String nickname,
+            String avatar,
+            int level,
+            String gameMode,
+            int maxPlayers,
+            int gameDuration,
+            boolean hasPassword,
+            String password,
+            boolean create,
+            boolean allowBots) {}
 
-    public record LeaveRoomRequest(String roomId, String playerId) {
-    }
+    public record LeaveRoomRequest(String roomId, String playerId) {}
 
-    public record ReadyRequest(String roomId, String playerId, String targetPlayerId, Boolean ready) {
-    }
+    public record ReadyRequest(
+            String roomId, String playerId, String targetPlayerId, Boolean ready) {}
 
-    public record StartGameRequest(String roomId, String playerId) {
-    }
+    public record StartGameRequest(String roomId, String playerId) {}
 
-    public record DirectionRequest(String roomId, String playerId, String direction) {
-    }
+    public record DirectionRequest(String roomId, String playerId, String direction) {}
 
-    public record ItemRequest(String roomId, String playerId, String itemType) {
-    }
+    public record ItemRequest(String roomId, String playerId, String itemType) {}
 
-    public record SpeedBoostRequest(String roomId, String playerId) {
-    }
+    public record SpeedBoostRequest(String roomId, String playerId) {}
 
-    public record ChatRequest(String roomId, String playerId, String text) {
-    }
+    public record ChatRequest(String roomId, String playerId, String text) {}
 
-    public record KickRequest(String roomId, String playerId, String targetPlayerId) {
-    }
+    public record KickRequest(String roomId, String playerId, String targetPlayerId) {}
 
     public record RoomSummary(
-        String id,
-        String name,
-        String hostId,
-        String hostName,
-        int playerCount,
-        int maxPlayers,
-        String status,
-        boolean hasPassword,
-        int gameDuration,
-        String gameMode,
-        boolean allowBots
-    ) {
-    }
+            String id,
+            String name,
+            String hostId,
+            String hostName,
+            int playerCount,
+            int maxPlayers,
+            String status,
+            boolean hasPassword,
+            int gameDuration,
+            String gameMode,
+            boolean allowBots) {}
 
-    public record RoomListResponse(List<RoomSummary> list, int total, int page, int size) {
-    }
+    public record RoomListResponse(List<RoomSummary> list, int total, int page, int size) {}
 
-    public record RoomQuery(int page, int size, String status, String keyword, String mode) {
-    }
+    public record RoomQuery(int page, int size, String status, String keyword, String mode) {}
 }

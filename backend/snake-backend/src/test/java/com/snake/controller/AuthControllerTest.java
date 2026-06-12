@@ -1,11 +1,17 @@
 package com.snake.controller;
 
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.snake.dto.LoginRequest;
 import com.snake.dto.RegisterRequest;
 import com.snake.entity.SysUser;
 import com.snake.repository.SysUserRepository;
 import com.snake.util.JwtUtil;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,29 +22,17 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.util.Optional;
-
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
-/**
- * 认证控制器 API 测试
- */
+/** 认证控制器 API 测试 */
 @ExtendWith(MockitoExtension.class)
 class AuthControllerTest {
 
     private MockMvc mockMvc;
 
-    @Mock
-    private SysUserRepository userRepository;
+    @Mock private SysUserRepository userRepository;
 
-    @Mock
-    private PasswordEncoder passwordEncoder;
+    @Mock private PasswordEncoder passwordEncoder;
 
-    @Mock
-    private JwtUtil jwtUtil;
+    @Mock private JwtUtil jwtUtil;
 
     private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -74,9 +68,10 @@ class AuthControllerTest {
         request.setUsername("admin");
         request.setPassword("admin123");
 
-        mockMvc.perform(post("/api/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(
+                        post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").value("test-jwt-token"))
                 .andExpect(jsonPath("$.user.id").value(1))
@@ -91,9 +86,10 @@ class AuthControllerTest {
         request.setUsername("unknown");
         request.setPassword("password123");
 
-        mockMvc.perform(post("/api/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(
+                        post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("用户名或密码错误"));
     }
@@ -102,9 +98,10 @@ class AuthControllerTest {
     void login_WithNullCredentials_ShouldReturn400() throws Exception {
         LoginRequest request = new LoginRequest();
 
-        mockMvc.perform(post("/api/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(
+                        post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("用户名和密码不能为空"));
     }
@@ -120,9 +117,10 @@ class AuthControllerTest {
         request.setUsername("disableduser");
         request.setPassword("password123");
 
-        mockMvc.perform(post("/api/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(
+                        post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("账号已被禁用"));
     }
@@ -131,11 +129,13 @@ class AuthControllerTest {
     void register_WithValidData_ShouldReturn201() throws Exception {
         when(userRepository.existsByUsername("newuser")).thenReturn(false);
         when(passwordEncoder.encode("password123")).thenReturn("$2a$10$encoded");
-        when(userRepository.save(any())).thenAnswer(invocation -> {
-            SysUser user = invocation.getArgument(0);
-            user.setId(2L);
-            return user;
-        });
+        when(userRepository.save(any()))
+                .thenAnswer(
+                        invocation -> {
+                            SysUser user = invocation.getArgument(0);
+                            user.setId(2L);
+                            return user;
+                        });
         when(jwtUtil.generateToken(2L, "newuser")).thenReturn("test-jwt-token");
 
         RegisterRequest request = new RegisterRequest();
@@ -143,9 +143,10 @@ class AuthControllerTest {
         request.setPassword("password123");
         request.setNickname("New User");
 
-        mockMvc.perform(post("/api/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(
+                        post("/api/auth/register")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.token").value("test-jwt-token"))
                 .andExpect(jsonPath("$.user.username").value("newuser"));
@@ -159,9 +160,10 @@ class AuthControllerTest {
         request.setUsername("existing");
         request.setPassword("password123");
 
-        mockMvc.perform(post("/api/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(
+                        post("/api/auth/register")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("用户名已存在"));
     }
@@ -172,9 +174,10 @@ class AuthControllerTest {
         request.setUsername("newuser");
         request.setPassword("12345");
 
-        mockMvc.perform(post("/api/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(
+                        post("/api/auth/register")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("密码长度不能少于6位"));
     }
@@ -185,9 +188,10 @@ class AuthControllerTest {
         request.setUsername("ab");
         request.setPassword("password123");
 
-        mockMvc.perform(post("/api/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(
+                        post("/api/auth/register")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("用户名长度须在3-50个字符之间"));
     }
@@ -196,9 +200,10 @@ class AuthControllerTest {
     void register_WithNullUsernameAndPassword_ShouldReturn400() throws Exception {
         RegisterRequest request = new RegisterRequest();
 
-        mockMvc.perform(post("/api/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(
+                        post("/api/auth/register")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("用户名和密码不能为空"));
     }
@@ -213,9 +218,10 @@ class AuthControllerTest {
         request.setUsername("admin");
         request.setPassword("wrongpass");
 
-        mockMvc.perform(post("/api/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(
+                        post("/api/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("用户名或密码错误"));
     }

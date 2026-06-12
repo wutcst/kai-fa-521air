@@ -23,7 +23,8 @@ public class GameEngine {
         "#ffd740", "#69f0ae", "#ff5252", "#40c4ff"
     };
 
-    private static final org.slf4j.Logger engineLog = org.slf4j.LoggerFactory.getLogger(GameEngine.class);
+    private static final org.slf4j.Logger engineLog =
+            org.slf4j.LoggerFactory.getLogger(GameEngine.class);
 
     public enum GameMode {
         SINGLE,
@@ -82,11 +83,9 @@ public class GameEngine {
         }
     }
 
-    public record PlayerSeed(String id, String nickname, boolean bot) {
-    }
+    public record PlayerSeed(String id, String nickname, boolean bot) {}
 
-    public record GridPoint(int x, int y) {
-    }
+    public record GridPoint(int x, int y) {}
 
     public static final class Food {
         private int x;
@@ -179,55 +178,48 @@ public class GameEngine {
     }
 
     public record SnakeState(
-        String id,
-        List<GridPoint> body,
-        String direction,
-        String color,
-        int score,
-        int kills,
-        int length,
-        boolean isAlive,
-        String nickname,
-        double speedBoost,
-        boolean shield,
-        double magnet,
-        boolean isMe
-    ) {
-    }
+            String id,
+            List<GridPoint> body,
+            String direction,
+            String color,
+            int score,
+            int kills,
+            int length,
+            boolean isAlive,
+            String nickname,
+            double speedBoost,
+            boolean shield,
+            double magnet,
+            boolean isMe) {}
 
     public record ScoreEntry(
-        String id,
-        String nickname,
-        int score,
-        int kills,
-        int length,
-        boolean isAlive,
-        double survivalTime,
-        boolean isMe,
-        String color
-    ) {
-    }
+            String id,
+            String nickname,
+            int score,
+            int kills,
+            int length,
+            boolean isAlive,
+            double survivalTime,
+            boolean isMe,
+            String color) {}
 
     public record GameStateSnapshot(
-        Map<String, SnakeState> snakes,
-        List<Food> foods,
-        List<Item> items,
-        List<Obstacle> obstacles,
-        List<ScoreEntry> scoreBoard,
-        double gameTime,
-        double totalTime,
-        String gameStatus,
-        int mapWidth,
-        int mapHeight,
-        int gridSize
-    ) {
-    }
+            Map<String, SnakeState> snakes,
+            List<Food> foods,
+            List<Item> items,
+            List<Obstacle> obstacles,
+            List<ScoreEntry> scoreBoard,
+            double gameTime,
+            double totalTime,
+            String gameStatus,
+            int mapWidth,
+            int mapHeight,
+            int gridSize) {}
 
-    public record GameResult(String gameId, int duration, List<ScoreEntry> rankings, String gameMode) {
-    }
+    public record GameResult(
+            String gameId, int duration, List<ScoreEntry> rankings, String gameMode) {}
 
-    public record GameEvent(String type, Map<String, Object> data) {
-    }
+    public record GameEvent(String type, Map<String, Object> data) {}
 
     private static final class Snake {
         private final String id;
@@ -247,7 +239,13 @@ public class GameEngine {
         private double speed;
         private double moveAccum;
 
-        private Snake(String id, String nickname, String color, boolean bot, List<GridPoint> body, Direction direction) {
+        private Snake(
+                String id,
+                String nickname,
+                String color,
+                boolean bot,
+                List<GridPoint> body,
+                Direction direction) {
             this.id = id;
             this.nickname = nickname;
             this.color = color;
@@ -292,11 +290,10 @@ public class GameEngine {
     }
 
     public void start(
-        ScheduledExecutorService scheduler,
-        Consumer<GameStateSnapshot> stateCallback,
-        Consumer<GameEvent> eventCallback,
-        Consumer<GameResult> gameOverCallback
-    ) {
+            ScheduledExecutorService scheduler,
+            Consumer<GameStateSnapshot> stateCallback,
+            Consumer<GameEvent> eventCallback,
+            Consumer<GameResult> gameOverCallback) {
         this.stateCallback = stateCallback;
         this.eventCallback = eventCallback;
         this.gameOverCallback = gameOverCallback;
@@ -309,7 +306,9 @@ public class GameEngine {
             lastTickNanos = System.nanoTime();
         }
 
-        tickTask = scheduler.scheduleAtFixedRate(this::tick, 0, TICK_INTERVAL_MS, TimeUnit.MILLISECONDS);
+        tickTask =
+                scheduler.scheduleAtFixedRate(
+                        this::tick, 0, TICK_INTERVAL_MS, TimeUnit.MILLISECONDS);
         itemTask = scheduler.scheduleAtFixedRate(this::spawnItems, 5, 5, TimeUnit.SECONDS);
         foodTask = scheduler.scheduleAtFixedRate(this::spawnFoods, 2, 2, TimeUnit.SECONDS);
         broadcastState();
@@ -337,9 +336,7 @@ public class GameEngine {
         }
     }
 
-    /**
-     * 淘汰玩家（断线或退出时调用）
-     */
+    /** 淘汰玩家（断线或退出时调用） */
     public void eliminatePlayer(String playerId, String reason) {
         if (playerId == null) {
             return;
@@ -386,7 +383,9 @@ public class GameEngine {
             lastTickNanos = now;
             gameTime += deltaTime;
 
-            if (mode == GameMode.MULTI && gameDurationSeconds > 0 && gameTime >= gameDurationSeconds) {
+            if (mode == GameMode.MULTI
+                    && gameDurationSeconds > 0
+                    && gameTime >= gameDurationSeconds) {
                 endGame();
                 return;
             }
@@ -395,7 +394,10 @@ public class GameEngine {
                 long aliveCount = snakes.values().stream().filter(s -> s.isAlive).count();
                 if (aliveCount <= 1) {
                     if (aliveCount == 1) {
-                        snakes.values().stream().filter(s -> s.isAlive).findFirst().ifPresent(s -> s.score += 200);
+                        snakes.values().stream()
+                                .filter(s -> s.isAlive)
+                                .findFirst()
+                                .ifPresent(s -> s.score += 200);
                     }
                     endGame();
                     return;
@@ -482,13 +484,17 @@ public class GameEngine {
                     eliminateSnake(other, "head to head");
                     snake.score += 100;
                     snake.kills++;
-                    emitEvent("player_kill", Map.of("killerId", snake.id, "victimId", other.id, "method", "head"));
+                    emitEvent(
+                            "player_kill",
+                            Map.of("killerId", snake.id, "victimId", other.id, "method", "head"));
                     spawnDeathFoods(other);
                 } else {
                     eliminateSnake(snake, "head to head");
                     other.score += 100;
                     other.kills++;
-                    emitEvent("player_kill", Map.of("killerId", other.id, "victimId", snake.id, "method", "head"));
+                    emitEvent(
+                            "player_kill",
+                            Map.of("killerId", other.id, "victimId", snake.id, "method", "head"));
                     spawnDeathFoods(snake);
                     return;
                 }
@@ -504,7 +510,15 @@ public class GameEngine {
                         eliminateSnake(snake, "hit body");
                         other.score += 100;
                         other.kills++;
-                        emitEvent("player_kill", Map.of("killerId", other.id, "victimId", snake.id, "method", "body"));
+                        emitEvent(
+                                "player_kill",
+                                Map.of(
+                                        "killerId",
+                                        other.id,
+                                        "victimId",
+                                        snake.id,
+                                        "method",
+                                        "body"));
                         spawnDeathFoods(snake);
                         return;
                     }
@@ -545,8 +559,10 @@ public class GameEngine {
 
     /** 每 N 个 tick 重新评估一次方向（tick 约 100ms，即约 0.2s 决策一次） */
     private static final int AI_DECISION_INTERVAL = 2;
+
     /** 安全前瞻步数 */
     private static final int AI_LOOKAHEAD = 8;
+
     /** BFS 搜索深度上限 */
     private static final int AI_BFS_MAX_DEPTH = 30;
 
@@ -817,8 +833,7 @@ public class GameEngine {
             case "speed" -> snake.speedBoost = 5;
             case "shield" -> snake.shield = true;
             case "magnet" -> snake.magnet = 8;
-            default -> {
-            }
+            default -> {}
         }
     }
 
@@ -847,12 +862,17 @@ public class GameEngine {
     private void eliminateSnake(Snake snake, String reason) {
         snake.isAlive = false;
         snake.deathTime = gameTime;
-        emitEvent("player_eliminated", Map.of(
-            "snakeId", snake.id,
-            "nickname", snake.nickname,
-            "reason", reason,
-            "time", gameTime
-        ));
+        emitEvent(
+                "player_eliminated",
+                Map.of(
+                        "snakeId",
+                        snake.id,
+                        "nickname",
+                        snake.nickname,
+                        "reason",
+                        reason,
+                        "time",
+                        gameTime));
 
         if (mode == GameMode.SINGLE) {
             endGame();
@@ -862,7 +882,10 @@ public class GameEngine {
         long alive = snakes.values().stream().filter(s -> s.isAlive).count();
         if (alive <= 1) {
             if (alive == 1) {
-                snakes.values().stream().filter(s -> s.isAlive).findFirst().ifPresent(s -> s.score += 200);
+                snakes.values().stream()
+                        .filter(s -> s.isAlive)
+                        .findFirst()
+                        .ifPresent(s -> s.score += 200);
             }
             endGame();
         }
@@ -871,7 +894,13 @@ public class GameEngine {
     private void spawnDeathFoods(Snake snake) {
         for (GridPoint seg : snake.body) {
             if (ThreadLocalRandom.current().nextDouble() < 0.3) {
-                foods.add(new Food(seg.x(), seg.y(), ThreadLocalRandom.current().nextDouble() < 0.2 ? "high" : "normal"));
+                foods.add(
+                        new Food(
+                                seg.x(),
+                                seg.y(),
+                                ThreadLocalRandom.current().nextDouble() < 0.2
+                                        ? "high"
+                                        : "normal"));
             }
         }
     }
@@ -879,10 +908,10 @@ public class GameEngine {
     private List<Obstacle> generateObstacles(int count) {
         List<Obstacle> list = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            list.add(new Obstacle(
-                ThreadLocalRandom.current().nextInt(5, MAP_WIDTH - 5),
-                ThreadLocalRandom.current().nextInt(5, MAP_HEIGHT - 5)
-            ));
+            list.add(
+                    new Obstacle(
+                            ThreadLocalRandom.current().nextInt(5, MAP_WIDTH - 5),
+                            ThreadLocalRandom.current().nextInt(5, MAP_HEIGHT - 5)));
         }
         return list;
     }
@@ -890,11 +919,11 @@ public class GameEngine {
     private List<Food> generateFoods(int count) {
         List<Food> list = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            list.add(new Food(
-                ThreadLocalRandom.current().nextInt(1, MAP_WIDTH - 1),
-                ThreadLocalRandom.current().nextInt(1, MAP_HEIGHT - 1),
-                ThreadLocalRandom.current().nextDouble() < 0.1 ? "high" : "normal"
-            ));
+            list.add(
+                    new Food(
+                            ThreadLocalRandom.current().nextInt(1, MAP_WIDTH - 1),
+                            ThreadLocalRandom.current().nextInt(1, MAP_HEIGHT - 1),
+                            ThreadLocalRandom.current().nextDouble() < 0.1 ? "high" : "normal"));
         }
         return list;
     }
@@ -903,11 +932,11 @@ public class GameEngine {
         String[] types = {"speed", "shield", "magnet"};
         List<Item> list = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            list.add(new Item(
-                ThreadLocalRandom.current().nextInt(1, MAP_WIDTH - 1),
-                ThreadLocalRandom.current().nextInt(1, MAP_HEIGHT - 1),
-                types[ThreadLocalRandom.current().nextInt(types.length)]
-            ));
+            list.add(
+                    new Item(
+                            ThreadLocalRandom.current().nextInt(1, MAP_WIDTH - 1),
+                            ThreadLocalRandom.current().nextInt(1, MAP_HEIGHT - 1),
+                            types[ThreadLocalRandom.current().nextInt(types.length)]));
         }
         return list;
     }
@@ -915,20 +944,20 @@ public class GameEngine {
     private List<GridPoint> getSpawnPositions(int count) {
         List<GridPoint> positions = new ArrayList<>();
         int margin = 8;
-        List<GridPoint> corners = List.of(
-            new GridPoint(margin, margin),
-            new GridPoint(MAP_WIDTH - margin, margin),
-            new GridPoint(margin, MAP_HEIGHT - margin),
-            new GridPoint(MAP_WIDTH - margin, MAP_HEIGHT - margin)
-        );
+        List<GridPoint> corners =
+                List.of(
+                        new GridPoint(margin, margin),
+                        new GridPoint(MAP_WIDTH - margin, margin),
+                        new GridPoint(margin, MAP_HEIGHT - margin),
+                        new GridPoint(MAP_WIDTH - margin, MAP_HEIGHT - margin));
         for (int i = 0; i < Math.min(count, corners.size()); i++) {
             positions.add(corners.get(i));
         }
         while (positions.size() < count) {
-            positions.add(new GridPoint(
-                ThreadLocalRandom.current().nextInt(margin, MAP_WIDTH - margin),
-                ThreadLocalRandom.current().nextInt(margin, MAP_HEIGHT - margin)
-            ));
+            positions.add(
+                    new GridPoint(
+                            ThreadLocalRandom.current().nextInt(margin, MAP_WIDTH - margin),
+                            ThreadLocalRandom.current().nextInt(margin, MAP_HEIGHT - margin)));
         }
         return positions;
     }
@@ -988,52 +1017,56 @@ public class GameEngine {
         Map<String, SnakeState> snakeStates = new LinkedHashMap<>();
         for (Snake snake : snakes.values()) {
             List<GridPoint> body = new ArrayList<>(snake.body);
-            snakeStates.put(snake.id, new SnakeState(
-                snake.id,
-                body,
-                snake.direction.name().toLowerCase(),
-                snake.color,
-                snake.score,
-                snake.kills,
-                snake.body.size(),
-                snake.isAlive,
-                snake.nickname,
-                snake.speedBoost,
-                snake.shield,
-                snake.magnet,
-                false
-            ));
+            snakeStates.put(
+                    snake.id,
+                    new SnakeState(
+                            snake.id,
+                            body,
+                            snake.direction.name().toLowerCase(),
+                            snake.color,
+                            snake.score,
+                            snake.kills,
+                            snake.body.size(),
+                            snake.isAlive,
+                            snake.nickname,
+                            snake.speedBoost,
+                            snake.shield,
+                            snake.magnet,
+                            false));
         }
 
-        List<ScoreEntry> scoreBoard = snakeStates.values().stream()
-            .map(s -> new ScoreEntry(
-                s.id(),
-                s.nickname(),
-                s.score(),
-                s.kills(),
-                s.length(),
-                s.isAlive(),
-                s.isAlive() ? gameTime : snakes.get(s.id()).deathTime,
-                false,
-                s.color()
-            ))
-            .sorted(Comparator.comparingInt(ScoreEntry::score).reversed())
-            .toList();
+        List<ScoreEntry> scoreBoard =
+                snakeStates.values().stream()
+                        .map(
+                                s ->
+                                        new ScoreEntry(
+                                                s.id(),
+                                                s.nickname(),
+                                                s.score(),
+                                                s.kills(),
+                                                s.length(),
+                                                s.isAlive(),
+                                                s.isAlive()
+                                                        ? gameTime
+                                                        : snakes.get(s.id()).deathTime,
+                                                false,
+                                                s.color()))
+                        .sorted(Comparator.comparingInt(ScoreEntry::score).reversed())
+                        .toList();
 
         double totalTime = mode == GameMode.MULTI ? gameDurationSeconds : 0;
         return new GameStateSnapshot(
-            snakeStates,
-            new ArrayList<>(foods),
-            new ArrayList<>(items),
-            new ArrayList<>(obstacles),
-            scoreBoard,
-            gameTime,
-            totalTime,
-            status,
-            MAP_WIDTH,
-            MAP_HEIGHT,
-            GRID_SIZE
-        );
+                snakeStates,
+                new ArrayList<>(foods),
+                new ArrayList<>(items),
+                new ArrayList<>(obstacles),
+                scoreBoard,
+                gameTime,
+                totalTime,
+                status,
+                MAP_WIDTH,
+                MAP_HEIGHT,
+                GRID_SIZE);
     }
 
     private void endGame() {
@@ -1047,27 +1080,27 @@ public class GameEngine {
 
         List<ScoreEntry> rankings = new ArrayList<>();
         for (Snake snake : snakes.values()) {
-            rankings.add(new ScoreEntry(
-                snake.id,
-                snake.nickname,
-                snake.score,
-                snake.kills,
-                snake.body.size(),
-                snake.isAlive,
-                snake.isAlive ? gameTime : snake.deathTime,
-                false,
-                snake.color
-            ));
+            rankings.add(
+                    new ScoreEntry(
+                            snake.id,
+                            snake.nickname,
+                            snake.score,
+                            snake.kills,
+                            snake.body.size(),
+                            snake.isAlive,
+                            snake.isAlive ? gameTime : snake.deathTime,
+                            false,
+                            snake.color));
         }
         rankings.sort(Comparator.comparingInt(ScoreEntry::score).reversed());
 
         if (gameOverCallback != null) {
-            gameOverCallback.accept(new GameResult(
-                "game_" + System.currentTimeMillis(),
-                (int) gameTime,   // 使用实际游戏时长，而非预设时长（单人模式预设为0）
-                rankings,
-                mode == GameMode.SINGLE ? "single" : "multi"
-            ));
+            gameOverCallback.accept(
+                    new GameResult(
+                            "game_" + System.currentTimeMillis(),
+                            (int) gameTime, // 使用实际游戏时长，而非预设时长（单人模式预设为0）
+                            rankings,
+                            mode == GameMode.SINGLE ? "single" : "multi"));
         }
     }
 

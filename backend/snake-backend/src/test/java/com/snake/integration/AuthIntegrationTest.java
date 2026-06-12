@@ -1,19 +1,14 @@
 package com.snake.integration;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.snake.dto.LoginRequest;
 import com.snake.dto.RegisterRequest;
-
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.*;
 
-import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.*;
-
-/**
- * 认证流程集成测试
- * 测试完整的注册 → 登录 → 获取用户信息 → 退出流程
- */
+/** 认证流程集成测试 测试完整的注册 → 登录 → 获取用户信息 → 退出流程 */
 class AuthIntegrationTest extends BaseIntegrationTest {
 
     @Test
@@ -82,8 +77,8 @@ class AuthIntegrationTest extends BaseIntegrationTest {
         LoginRequest loginReq = new LoginRequest();
         loginReq.setUsername(username);
         loginReq.setPassword("wrongPassword456");
-        ResponseEntity<Map> response = restTemplate.postForEntity(
-                baseUrl() + "/api/auth/login", loginReq, Map.class);
+        ResponseEntity<Map> response =
+                restTemplate.postForEntity(baseUrl() + "/api/auth/login", loginReq, Map.class);
 
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
     }
@@ -93,8 +88,8 @@ class AuthIntegrationTest extends BaseIntegrationTest {
         LoginRequest loginReq = new LoginRequest();
         loginReq.setUsername("no_such_user_" + System.currentTimeMillis());
         loginReq.setPassword("password123");
-        ResponseEntity<Map> response = restTemplate.postForEntity(
-                baseUrl() + "/api/auth/login", loginReq, Map.class);
+        ResponseEntity<Map> response =
+                restTemplate.postForEntity(baseUrl() + "/api/auth/login", loginReq, Map.class);
 
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
     }
@@ -127,8 +122,8 @@ class AuthIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getMe_WithoutToken_ShouldReturn401() {
-        ResponseEntity<Map> response = restTemplate.getForEntity(
-                baseUrl() + "/api/auth/me", Map.class);
+        ResponseEntity<Map> response =
+                restTemplate.getForEntity(baseUrl() + "/api/auth/me", Map.class);
 
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
         assertEquals("未登录", response.getBody().get("message"));

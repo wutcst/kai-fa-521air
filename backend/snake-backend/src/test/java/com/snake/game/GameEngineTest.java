@@ -1,20 +1,17 @@
 package com.snake.game;
 
-import com.snake.game.GameEngine.*;
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
+import com.snake.game.GameEngine.*;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
-
-/**
- * 游戏引擎核心逻辑单元测试
- */
+/** 游戏引擎核心逻辑单元测试 */
 class GameEngineTest {
 
     @Test
@@ -62,10 +59,10 @@ class GameEngineTest {
 
     @Test
     void constructor_ShouldCreateSnakesAndReceiveState() {
-        List<PlayerSeed> players = List.of(
-            new PlayerSeed("p1", "Player1", false),
-            new PlayerSeed("p2", "Player2", false)
-        );
+        List<PlayerSeed> players =
+                List.of(
+                        new PlayerSeed("p1", "Player1", false),
+                        new PlayerSeed("p2", "Player2", false));
         GameEngine engine = new GameEngine(GameMode.MULTI, 300, players);
 
         assertEquals(60, GameEngine.MAP_WIDTH);
@@ -75,10 +72,14 @@ class GameEngineTest {
         AtomicReference<GameStateSnapshot> capturedState = new AtomicReference<>();
         AtomicBoolean stateReceived = new AtomicBoolean(false);
 
-        engine.start(executor, snapshot -> {
-            capturedState.set(snapshot);
-            stateReceived.set(true);
-        }, event -> {}, result -> {});
+        engine.start(
+                executor,
+                snapshot -> {
+                    capturedState.set(snapshot);
+                    stateReceived.set(true);
+                },
+                event -> {},
+                result -> {});
 
         sleep(200);
         engine.stop();
@@ -123,44 +124,58 @@ class GameEngineTest {
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         AtomicBoolean gameOver = new AtomicBoolean(false);
 
-        engine.start(executor, snapshot -> {}, event -> {}, result -> {
-            gameOver.set(true);
-        });
+        engine.start(
+                executor,
+                snapshot -> {},
+                event -> {},
+                result -> {
+                    gameOver.set(true);
+                });
 
         engine.eliminatePlayer("p1", "died");
         sleep(200);
 
-        assertTrue(gameOver.get(), "Eliminating the only player in SINGLE mode should end the game");
+        assertTrue(
+                gameOver.get(), "Eliminating the only player in SINGLE mode should end the game");
         engine.stop();
     }
 
     @Test
     void eliminatePlayer_InMultiMode_ShouldEndWhenAllDead() {
         // MULTI mode: game ends when aliveCount <= 1 (last surviving player wins)
-        List<PlayerSeed> players = List.of(
-            new PlayerSeed("p1", "Player1", false),
-            new PlayerSeed("p2", "Player2", false),
-            new PlayerSeed("p3", "Player3", false)
-        );
+        List<PlayerSeed> players =
+                List.of(
+                        new PlayerSeed("p1", "Player1", false),
+                        new PlayerSeed("p2", "Player2", false),
+                        new PlayerSeed("p3", "Player3", false));
         GameEngine engine = new GameEngine(GameMode.MULTI, 300, players);
 
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         AtomicInteger gameOverCount = new AtomicInteger(0);
 
-        engine.start(executor, snapshot -> {}, event -> {}, result -> {
-            gameOverCount.incrementAndGet();
-        });
+        engine.start(
+                executor,
+                snapshot -> {},
+                event -> {},
+                result -> {
+                    gameOverCount.incrementAndGet();
+                });
 
         // Eliminate p1 only - game should NOT end yet (p2, p3 still alive, alive=2 > 1)
         engine.eliminatePlayer("p1", "died");
         sleep(200);
-        assertEquals(0, gameOverCount.get(), "Game should not end with 2 players still alive in MULTI mode");
+        assertEquals(
+                0,
+                gameOverCount.get(),
+                "Game should not end with 2 players still alive in MULTI mode");
 
         // Eliminate p2 - game should end (p3 only alive, alive=1 <= 1)
         engine.eliminatePlayer("p2", "died");
         sleep(200);
 
-        assertTrue(gameOverCount.get() >= 1, "Game should end when only 1 player remains alive in MULTI mode");
+        assertTrue(
+                gameOverCount.get() >= 1,
+                "Game should end when only 1 player remains alive in MULTI mode");
         engine.stop();
     }
 
@@ -202,11 +217,10 @@ class GameEngineTest {
     @Test
     void snakeState_ShouldStoreAllFields() {
         List<GridPoint> body = List.of(new GridPoint(5, 5), new GridPoint(4, 5));
-        SnakeState state = new SnakeState(
-            "p1", body, "right", "#ff0000",
-            100, 2, 5, true, "Player1",
-            0.0, false, 0.0, true
-        );
+        SnakeState state =
+                new SnakeState(
+                        "p1", body, "right", "#ff0000", 100, 2, 5, true, "Player1", 0.0, false, 0.0,
+                        true);
 
         assertEquals("p1", state.id());
         assertEquals(2, state.body().size());
@@ -221,7 +235,8 @@ class GameEngineTest {
 
     @Test
     void scoreEntry_ShouldStoreAllFields() {
-        ScoreEntry entry = new ScoreEntry("p1", "Player1", 200, 3, 10, true, 120.5, true, "#00e676");
+        ScoreEntry entry =
+                new ScoreEntry("p1", "Player1", 200, 3, 10, true, 120.5, true, "#00e676");
 
         assertEquals("p1", entry.id());
         assertEquals("Player1", entry.nickname());

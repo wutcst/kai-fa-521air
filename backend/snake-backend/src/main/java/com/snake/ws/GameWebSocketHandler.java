@@ -20,44 +20,53 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
     }
 
     @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
+    protected void handleTextMessage(WebSocketSession session, TextMessage message)
+            throws Exception {
         WsMessage wsMessage = objectMapper.readValue(message.getPayload(), WsMessage.class);
         if (wsMessage == null || wsMessage.type() == null) {
             return;
         }
 
         switch (wsMessage.type()) {
-            case "join_room" -> roomManager.joinRoom(
-                session,
-                objectMapper.convertValue(wsMessage.data(), RoomManager.JoinRoomRequest.class)
-            );
-            case "leave_room" -> roomManager.leaveRoom(
-                session,
-                objectMapper.convertValue(wsMessage.data(), RoomManager.LeaveRoomRequest.class)
-            );
-            case "ready" -> roomManager.setReady(
-                session,
-                objectMapper.convertValue(wsMessage.data(), RoomManager.ReadyRequest.class)
-            );
-            case "start_game" -> roomManager.startGame(
-                session,
-                objectMapper.convertValue(wsMessage.data(), RoomManager.StartGameRequest.class)
-            );
-            case "change_direction" -> roomManager.changeDirection(
-                session,
-                objectMapper.convertValue(wsMessage.data(), RoomManager.DirectionRequest.class)
-            );
-            case "chat_message" -> roomManager.chat(
-                session,
-                objectMapper.convertValue(wsMessage.data(), RoomManager.ChatRequest.class)
-            );
-            case "kick_player" -> roomManager.kickPlayer(
-                session,
-                objectMapper.convertValue(wsMessage.data(), RoomManager.KickRequest.class)
-            );
-            case "ping" -> roomManager.sendMessage(session, "pong", java.util.Map.of("time", System.currentTimeMillis()));
-            default -> {
-            }
+            case "join_room" ->
+                    roomManager.joinRoom(
+                            session,
+                            objectMapper.convertValue(
+                                    wsMessage.data(), RoomManager.JoinRoomRequest.class));
+            case "leave_room" ->
+                    roomManager.leaveRoom(
+                            session,
+                            objectMapper.convertValue(
+                                    wsMessage.data(), RoomManager.LeaveRoomRequest.class));
+            case "ready" ->
+                    roomManager.setReady(
+                            session,
+                            objectMapper.convertValue(
+                                    wsMessage.data(), RoomManager.ReadyRequest.class));
+            case "start_game" ->
+                    roomManager.startGame(
+                            session,
+                            objectMapper.convertValue(
+                                    wsMessage.data(), RoomManager.StartGameRequest.class));
+            case "change_direction" ->
+                    roomManager.changeDirection(
+                            session,
+                            objectMapper.convertValue(
+                                    wsMessage.data(), RoomManager.DirectionRequest.class));
+            case "chat_message" ->
+                    roomManager.chat(
+                            session,
+                            objectMapper.convertValue(
+                                    wsMessage.data(), RoomManager.ChatRequest.class));
+            case "kick_player" ->
+                    roomManager.kickPlayer(
+                            session,
+                            objectMapper.convertValue(
+                                    wsMessage.data(), RoomManager.KickRequest.class));
+            case "ping" ->
+                    roomManager.sendMessage(
+                            session, "pong", java.util.Map.of("time", System.currentTimeMillis()));
+            default -> {}
         }
     }
 
