@@ -1,0 +1,93 @@
+# ============================================================
+# CI Pipeline - 多人联机贪吃蛇游戏
+# 触发条件: push 到 master/main/develop 分支, 以及 Pull Request
+# 功能:
+#   1. Java 后端代码格式检查 + 单元测试
+#   2. Vue 前端代码格式检查 + 构建校验
+# ============================================================
+
+name: CI - Code Format & Test
+
+on:
+  push:
+    branches: [master, main, develop]
+  pull_request:
+    branches: [master, main]
+
+# 确保同一分支的旧 workflow 自动取消，避免资源浪费
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ==================== 后端：格式检查 + 测试 ====================
+  backend:
+    name: Backend (Java) - Format & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/snake-backend
+
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v4
+
+      - name: 设置 JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: 赋予 mvnw 执行权限
+        run: chmod +x mvnw
+
+      - name: 代码格式检查 (Spotless)
+        run: ./mvnw spotless:check -Dspotless.check.skip=false
+        # 格式不符合规范时该步骤会失败，导致提交失败
+
+      - name: 运行后端单元测试
+        run: ./mvnw test -B
+        # 测试不通过时该步骤会失败，导致提交失败
+
+      - name: 上传测试报告（失败时便于排查）
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-reports
+          path: backend/snake-backend/target/surefire-reports/
+
+  # ==================== 前端：格式检查 + 构建校验 ====================
+  frontend:
+    name: Frontend (Vue) - Format & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 安装依赖
+        run: npm ci
+        # 如果 package-lock.json 不存在，会回退到 npm install
+
+      - name: ESLint 代码规范检查
+        run: npm run lint:check
+        # 代码不符合 ESLint 规范时该步骤会失败
+
+      - name: Prettier 代码格式检查
+        run: npm run format:check
+        # 代码格式不符合 Prettier 规范时该步骤会失败
+
+      - name: 构建校验 (确保代码可编译)
+        run: npm run build
+        # 构建失败也意味着代码存在问题
