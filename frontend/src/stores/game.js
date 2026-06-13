@@ -7,10 +7,10 @@ import { ref, computed } from 'vue'
 
 export const useGameStore = defineStore('game', () => {
   // ---- 状态 ----
-  const gameStatus = ref('idle') // idle | countdown | playing | paused | finished
-  const countdown = ref(0) // 倒计时秒数
-  const gameTime = ref(0) // 已进行时间（秒）
-  const totalTime = ref(300) // 总局时（秒）
+  const gameStatus = ref('idle')     // idle | countdown | playing | paused | finished
+  const countdown = ref(0)           // 倒计时秒数
+  const gameTime = ref(0)            // 已进行时间（秒）
+  const totalTime = ref(300)         // 总局时（秒）
 
   // 所有蛇的状态（key: playerId）
   const snakes = ref({})
@@ -85,6 +85,6 @@ export const useGameStore = defineStore('game', () => {
     setGameStatus,
     setCountdown,
     setMyDirection,
-    resetGame,
+    resetGame
   }
 })

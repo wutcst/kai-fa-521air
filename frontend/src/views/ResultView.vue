@@ -25,9 +25,7 @@
         <h2 class="champion-name">{{ rankings[0].nickname }}</h2>
         <p class="champion-score">{{ rankings[0].score }} 分</p>
         <el-tag v-if="rankings[0].isMe" type="success" size="large">🏆 就是你！</el-tag>
-        <el-tag v-if="rankings[0] === mvpPlayer" type="warning" size="small" effect="plain"
-          >MVP</el-tag
-        >
+        <el-tag v-if="rankings[0] === mvpPlayer" type="warning" size="small" effect="plain">MVP</el-tag>
       </div>
 
       <!-- 单人模式成绩 -->
@@ -45,26 +43,20 @@
         <h3>📊 完整排名</h3>
         <TransitionGroup name="rank-reveal" tag="div">
           <div
-            v-for="(player, index) in visibleRankings"
-            :key="player.id"
-            :class="[
-              'ranking-item',
-              { 'is-me': player.isMe, 'is-mvp': player === mvpPlayer, 'is-champion': index === 0 },
-            ]"
+            v-for="(player, index) in visibleRankings" :key="player.id"
+            :class="['ranking-item', { 'is-me': player.isMe, 'is-mvp': player === mvpPlayer, 'is-champion': index === 0 }]"
           >
             <span class="rank-num">
-              <template v-if="index === 0">🥇</template>
-              <template v-else-if="index === 1">🥈</template>
-              <template v-else-if="index === 2">🥉</template>
-              <template v-else>#{{ index + 1 }}</template>
+              <template v-if="index===0">🥇</template>
+              <template v-else-if="index===1">🥈</template>
+              <template v-else-if="index===2">🥉</template>
+              <template v-else>#{{ index+1 }}</template>
             </span>
             <div class="player-col">
               <span class="p-name">
                 {{ player.nickname }}
                 <el-tag v-if="player.isMe" type="success" size="small">我</el-tag>
-                <el-tag v-if="player === mvpPlayer" type="warning" size="small" effect="plain"
-                  >MVP</el-tag
-                >
+                <el-tag v-if="player === mvpPlayer" type="warning" size="small" effect="plain">MVP</el-tag>
               </span>
               <div class="p-stats">
                 <span>⚔ {{ player.kills || 0 }} 击杀</span>
@@ -128,28 +120,18 @@
 
     <div v-else class="no-data">
       <el-empty :description="loadError || '暂无结算数据'" :image-size="100">
-        <el-button v-if="isOwner" type="primary" @click="$router.push('/lobby')"
-          >返回大厅</el-button
-        >
+        <el-button v-if="isOwner" type="primary" @click="$router.push('/lobby')">返回大厅</el-button>
       </el-empty>
     </div>
 
     <!-- 分享弹窗 -->
-    <el-dialog
-      v-model="showShareDialog"
-      title="📤 分享战绩"
-      width="440px"
-      center
-      :close-on-click-modal="true"
-    >
+    <el-dialog v-model="showShareDialog" title="📤 分享战绩" width="440px" center :close-on-click-modal="true">
       <div class="share-content">
         <!-- 战绩摘要 -->
         <div class="share-preview">
           <div class="share-game-mode">{{ isSingle ? '🧘 单人无尽' : '🏆 多人对战' }}</div>
           <div class="share-my-line" v-if="myData">
-            <template v-if="!isSingle"
-              >排名 <strong>#{{ myRank }}</strong> ·
-            </template>
+            <template v-if="!isSingle">排名 <strong>#{{ myRank }}</strong> · </template>
             <strong>{{ myData.score }} 分</strong>
             <template v-if="!isSingle"> · ⚔ {{ myData.kills || 0 }} 击杀</template>
             <template v-if="myData.length"> · 🐍 长度 {{ myData.length }}</template>
@@ -172,7 +154,7 @@
         <div class="share-action">
           <div class="share-label">📝 分享文字</div>
           <div class="share-text-preview">{{ shareText }}</div>
-          <el-button size="small" @click="copyText" :icon="copyTextIcon" style="margin-top: 6px">
+          <el-button size="small" @click="copyText" :icon="copyTextIcon" style="margin-top:6px">
             {{ textCopied ? '已复制' : '复制文字' }}
           </el-button>
         </div>
@@ -211,14 +193,14 @@ const isOwner = computed(() => {
   }
 })
 
-const myData = computed(() => rankings.value.find((r) => r.isMe))
-const myRank = computed(() => rankings.value.findIndex((r) => r.isMe) + 1)
+const myData = computed(() => rankings.value.find(r => r.isMe))
+const myRank = computed(() => rankings.value.findIndex(r => r.isMe) + 1)
 
 const mvpPlayer = computed(() => {
   if (!rankings.value.length) return null
   return rankings.value.reduce((best, p) => {
-    const score = (p.score || 0) + (p.kills || 0) * 20 + (p.length || 0) * 2
-    const bestScore = (best.score || 0) + (best.kills || 0) * 20 + (best.length || 0) * 2
+    const score = (p.score||0) + (p.kills||0)*20 + (p.length||0)*2
+    const bestScore = (best.score||0) + (best.kills||0)*20 + (best.length||0)*2
     return score > bestScore ? p : best
   }, rankings.value[0])
 })
@@ -228,10 +210,8 @@ function revealRankings() {
   const all = rankings.value
   let i = 0
   const timer = setInterval(() => {
-    if (i < all.length) {
-      visibleRankings.value.push(all[i])
-      i++
-    } else clearInterval(timer)
+    if (i < all.length) { visibleRankings.value.push(all[i]); i++ }
+    else clearInterval(timer)
   }, 400)
 }
 
@@ -251,9 +231,7 @@ async function loadResult() {
         resultData.value = cached
         return
       }
-    } catch {
-      /* sessionStorage 解析失败时忽略 */
-    }
+    } catch {}
   }
 
   // 2. 从后端 API 获取真实游戏数据
@@ -286,7 +264,7 @@ function transformGameDetail(detail) {
   if (!detail) return null
 
   const currentId = String(userStore.userInfo.id || '')
-  const rankings = (detail.players || []).map((p) => ({
+  const rankings = (detail.players || []).map(p => ({
     id: String(p.userId || ''),
     nickname: p.nickname || p.userId || '?',
     score: p.score || 0,
@@ -294,29 +272,28 @@ function transformGameDetail(detail) {
     length: p.snakeLength || 0,
     survivalTime: p.survivalTime || 0,
     isAlive: p.isAlive !== false,
-    isMe: String(p.userId) === currentId,
+    isMe: String(p.userId) === currentId
   }))
 
   return {
     gameId: String(detail.id || ''),
     gameMode: detail.gameMode || 'multi',
     duration: detail.duration || 0,
-    rankings,
+    rankings
   }
 }
 
 function formatSurvival(s) {
-  const m = Math.floor(s / 60)
-  const sec = Math.floor(s % 60)
-  return `${m}:${sec.toString().padStart(2, '0')}`
+  const m = Math.floor(s/60); const sec = Math.floor(s%60)
+  return `${m}:${sec.toString().padStart(2,'0')}`
 }
 
 function getParticleStyle(i) {
   return {
-    left: `${Math.random() * 100}%`,
-    animationDelay: `${Math.random() * 2}s`,
-    animationDuration: `${2 + Math.random() * 3}s`,
-    backgroundColor: ['#66bb6a', '#a5d6a7', '#81c784', '#ffa726', '#ef5350'][i % 5],
+    left: `${Math.random()*100}%`,
+    animationDelay: `${Math.random()*2}s`,
+    animationDuration: `${2+Math.random()*3}s`,
+    backgroundColor: ['#66bb6a','#a5d6a7','#81c784','#ffa726','#ef5350'][i%5]
   }
 }
 
@@ -328,8 +305,8 @@ function playAgain() {
 const showShareDialog = ref(false)
 const linkCopied = ref(false)
 const textCopied = ref(false)
-const copyLinkIcon = computed(() => (linkCopied.value ? Check : CopyDocument))
-const copyTextIcon = computed(() => (textCopied.value ? Check : CopyDocument))
+const copyLinkIcon = computed(() => linkCopied.value ? Check : CopyDocument)
+const copyTextIcon = computed(() => textCopied.value ? Check : CopyDocument)
 
 /** 分享链接 */
 const shareLink = computed(() => {
@@ -362,17 +339,13 @@ async function copyLink() {
     await navigator.clipboard.writeText(shareLink.value)
     linkCopied.value = true
     ElMessage.success('链接已复制到剪贴板！')
-    setTimeout(() => {
-      linkCopied.value = false
-    }, 3000)
+    setTimeout(() => { linkCopied.value = false }, 3000)
   } catch (e) {
     // 回退方案：使用传统方法
     fallbackCopy(shareLink.value, () => {
       linkCopied.value = true
       ElMessage.success('链接已复制到剪贴板！')
-      setTimeout(() => {
-        linkCopied.value = false
-      }, 3000)
+      setTimeout(() => { linkCopied.value = false }, 3000)
     })
   }
 }
@@ -382,16 +355,12 @@ async function copyText() {
     await navigator.clipboard.writeText(shareText.value)
     textCopied.value = true
     ElMessage.success('战绩文字已复制！')
-    setTimeout(() => {
-      textCopied.value = false
-    }, 3000)
+    setTimeout(() => { textCopied.value = false }, 3000)
   } catch (e) {
     fallbackCopy(shareText.value, () => {
       textCopied.value = true
       ElMessage.success('战绩文字已复制！')
-      setTimeout(() => {
-        textCopied.value = false
-      }, 3000)
+      setTimeout(() => { textCopied.value = false }, 3000)
     })
   }
 }
@@ -423,218 +392,86 @@ onMounted(() => {
 
 <style scoped>
 .result-container {
-  width: 100%;
-  height: 100vh;
+  width: 100%; height: 100vh;
   background: linear-gradient(135deg, #e8f5e9, #f1f8e9, #dcedc8, #f5f9f0);
-  overflow-y: auto;
-  padding: 20px;
-  position: relative;
-  display: flex;
-  justify-content: center;
+  overflow-y: auto; padding: 20px; position: relative;
+  display: flex; justify-content: center;
   /* 确保内容超长时可以滚动 */
   -webkit-overflow-scrolling: touch;
 }
-.confetti {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  overflow: hidden;
-}
+.confetti { position: fixed; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; }
 .particle {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  border-radius: 3px;
-  top: -10px;
+  position: absolute; width: 8px; height: 8px;
+  border-radius: 3px; top: -10px;
   animation: fall linear infinite;
 }
-@keyframes fall {
-  to {
-    transform: translateY(100vh) rotate(720deg);
-    opacity: 0;
-  }
-}
+@keyframes fall { to { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
 
 .result-card {
   background: #fff;
   border: 1px solid #dcedc8;
   border-radius: 18px;
   padding: 28px 36px;
-  max-width: 700px;
-  width: 100%;
-  position: relative;
-  z-index: 2;
-  box-shadow: 0 12px 40px rgba(46, 59, 46, 0.08);
+  max-width: 700px; width: 100%;
+  position: relative; z-index: 2;
+  box-shadow: 0 12px 40px rgba(46,59,46,0.08);
   margin: 20px auto;
 }
 
-.result-header {
-  text-align: center;
-  margin-bottom: 16px;
-}
-.result-header h1 {
-  font-size: 24px;
-  color: #43a047;
-  margin: 0;
-}
-.game-id {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 4px;
-}
+.result-header { text-align: center; margin-bottom: 16px; }
+.result-header h1 { font-size: 24px; color: #43a047; margin: 0; }
+.game-id { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 
 .champion-area {
-  text-align: center;
-  padding: 18px;
-  background: #f1f8e9;
-  border: 1px solid #c8e6c9;
-  border-radius: 14px;
-  margin-bottom: 16px;
+  text-align: center; padding: 18px;
+  background: #f1f8e9; border: 1px solid #c8e6c9;
+  border-radius: 14px; margin-bottom: 16px;
 }
-.champion-crown {
-  font-size: 32px;
-}
-.champion-avatar {
-  margin: 6px 0;
-  border: 3px solid #66bb6a;
-}
-.champion-name {
-  font-size: 20px;
-  color: #2e7d32;
-  margin: 6px 0 2px;
-}
-.champion-score {
-  font-size: 16px;
-  color: var(--text-primary);
-}
+.champion-crown { font-size: 32px; }
+.champion-avatar { margin: 6px 0; border: 3px solid #66bb6a; }
+.champion-name { font-size: 20px; color: #2e7d32; margin: 6px 0 2px; }
+.champion-score { font-size: 16px; color: var(--text-primary); }
 
 /* 单人模式 */
-.single-result {
-  text-align: center;
-  padding: 20px;
-}
-.single-big-score {
-  font-size: 56px;
-  font-weight: 900;
-  color: #43a047;
-}
-.single-label {
-  font-size: 16px;
-  color: var(--text-muted);
-  margin-bottom: 16px;
-}
-.single-stats {
-  display: flex;
-  justify-content: center;
-  gap: 24px;
-  font-size: 14px;
-  color: var(--text-secondary);
-}
+.single-result { text-align: center; padding: 20px; }
+.single-big-score { font-size: 56px; font-weight: 900; color: #43a047; }
+.single-label { font-size: 16px; color: var(--text-muted); margin-bottom: 16px; }
+.single-stats { display: flex; justify-content: center; gap: 24px; font-size: 14px; color: var(--text-secondary); }
 
 /* 排名列表 */
-.rankings-list {
-  margin-bottom: 16px;
-}
-.rankings-list h3 {
-  color: var(--text-secondary);
-  font-size: 14px;
-  margin-bottom: 8px;
-}
+.rankings-list { margin-bottom: 16px; }
+.rankings-list h3 { color: var(--text-secondary); font-size: 14px; margin-bottom: 8px; }
 .ranking-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  margin-bottom: 4px;
-  background: #fafdf7;
-  transition: background 0.3s;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: 10px; margin-bottom: 4px;
+  background: #fafdf7; transition: background 0.3s;
 }
-.ranking-item.is-me {
-  background: #e8f5e9;
-  border: 1px solid #a5d6a7;
-}
-.ranking-item.is-champion {
-  background: #f1f8e9;
-}
-.ranking-item.is-mvp {
-  border-left: 3px solid #ffa726;
-}
-.rank-num {
-  width: 36px;
-  font-size: 16px;
-  text-align: center;
-}
-.player-col {
-  flex: 1;
-  min-width: 0;
-}
-.p-name {
-  font-weight: 600;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.p-stats {
-  display: flex;
-  gap: 12px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-top: 2px;
-}
-.p-score {
-  font-size: 16px;
-  font-weight: 700;
-  color: #43a047;
-  min-width: 60px;
-  text-align: right;
-}
+.ranking-item.is-me { background: #e8f5e9; border: 1px solid #a5d6a7; }
+.ranking-item.is-champion { background: #f1f8e9; }
+.ranking-item.is-mvp { border-left: 3px solid #ffa726; }
+.rank-num { width: 36px; font-size: 16px; text-align: center; }
+.player-col { flex: 1; min-width: 0; }
+.p-name { font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 6px; }
+.p-stats { display: flex; gap: 12px; font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.p-score { font-size: 16px; font-weight: 700; color: #43a047; min-width: 60px; text-align: right; }
 
 .personal-card {
-  background: #f1f8e9;
-  border: 1px solid #c8e6c9;
-  border-radius: 12px;
-  padding: 14px 18px;
-  margin-bottom: 20px;
+  background: #f1f8e9; border: 1px solid #c8e6c9;
+  border-radius: 12px; padding: 14px 18px; margin-bottom: 20px;
 }
-.personal-card h4 {
-  color: #43a047;
-  margin: 0 0 10px;
-  font-size: 14px;
-}
+.personal-card h4 { color: #43a047; margin: 0 0 10px; font-size: 14px; }
 .data-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 10px;
 }
 .data-item {
-  text-align: center;
-  background: #fff;
-  padding: 10px 6px;
-  border-radius: 8px;
-  border: 1px solid #dcedc8;
+  text-align: center; background: #fff;
+  padding: 10px 6px; border-radius: 8px; border: 1px solid #dcedc8;
 }
-.data-val {
-  display: block;
-  font-size: 20px;
-  font-weight: 700;
-  color: #43a047;
-}
-.data-label {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-top: 2px;
-}
+.data-val { display: block; font-size: 20px; font-weight: 700; color: #43a047; }
+.data-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
-.action-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-top: 4px;
-}
+.action-buttons { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; margin-top: 4px; }
 
 .shared-notice {
   text-align: center;
@@ -643,24 +480,10 @@ onMounted(() => {
   color: var(--text-muted);
 }
 
-.rank-reveal-enter-active {
-  animation: slideRight 0.4s ease-out;
-}
-@keyframes slideRight {
-  from {
-    transform: translateX(-30px);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
+.rank-reveal-enter-active { animation: slideRight 0.4s ease-out; }
+@keyframes slideRight { from{transform:translateX(-30px);opacity:0} to{transform:translateX(0);opacity:1} }
 
-.no-data {
-  position: relative;
-  z-index: 2;
-}
+.no-data { position: relative; z-index: 2; }
 
 /* ---- 分享弹窗 ---- */
 .share-content {

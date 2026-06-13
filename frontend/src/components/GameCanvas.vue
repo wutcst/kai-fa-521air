@@ -17,12 +17,12 @@ const props = defineProps({
   gridSize: { type: Number, default: 20 },
   mapWidth: { type: Number, default: 50 },
   mapHeight: { type: Number, default: 50 },
-  running: { type: Boolean, default: false },
+  running: { type: Boolean, default: false }
 })
 
 const canvasRef = ref(null)
 const wrapperRef = ref(null)
-const { initContext, render, destroy } = useSnake(canvasRef)
+const { initContext, render, canvasWidth, canvasHeight, destroy } = useSnake(canvasRef)
 
 const { start: startLoop, stop: stopLoop } = useGameLoop(() => {
   if (props.gameState?.gameStatus === 'playing' || props.gameState?.gameStatus === 'finished') {
@@ -37,17 +37,14 @@ function fitToWindow() {
   const maxW = wrapper.clientWidth
   const maxH = wrapper.clientHeight
   const scale = Math.min(maxW / canvas.width, maxH / canvas.height)
-  canvas.style.width = canvas.width * scale + 'px'
-  canvas.style.height = canvas.height * scale + 'px'
+  canvas.style.width = (canvas.width * scale) + 'px'
+  canvas.style.height = (canvas.height * scale) + 'px'
 }
 
-watch(
-  () => props.running,
-  (running) => {
-    if (running) startLoop()
-    else stopLoop()
-  },
-)
+watch(() => props.running, (running) => {
+  if (running) startLoop()
+  else stopLoop()
+})
 
 onMounted(() => {
   initContext(props.mapWidth, props.mapHeight, props.gridSize)
@@ -66,11 +63,8 @@ defineExpose({ canvasRef, fitToWindow })
 
 <style scoped>
 .game-canvas-wrapper {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
   overflow: hidden;
   background: #e8f5e9;
 }

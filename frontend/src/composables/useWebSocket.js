@@ -136,14 +136,8 @@ export function useWebSocket(url, handlers = {}, options = {}) {
   }
 
   function stopHeartbeat() {
-    if (heartbeatTimer) {
-      clearInterval(heartbeatTimer)
-      heartbeatTimer = null
-    }
-    if (heartbeatTimeoutTimer) {
-      clearTimeout(heartbeatTimeoutTimer)
-      heartbeatTimeoutTimer = null
-    }
+    if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null }
+    if (heartbeatTimeoutTimer) { clearTimeout(heartbeatTimeoutTimer); heartbeatTimeoutTimer = null }
   }
 
   // ---- 指数退避重连 ----
@@ -170,7 +164,7 @@ export function useWebSocket(url, handlers = {}, options = {}) {
     connect,
     send,
     disconnect,
-    reconnectCount,
+    reconnectCount
   }
 }
 
@@ -200,6 +194,6 @@ export function useMockWebSocket(handlers = {}) {
   return {
     isConnected,
     send,
-    mockReceive,
+    mockReceive
   }
 }

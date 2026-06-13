@@ -51,7 +51,7 @@ export function useGameLoop(onUpdate, fps = 60) {
     frameCount++
     fpsTimer += deltaTime
     if (fpsTimer >= 1000) {
-      fpsActual.value = Math.round((frameCount * 1000) / fpsTimer)
+      fpsActual.value = Math.round(frameCount * 1000 / fpsTimer)
       frameCount = 0
       fpsTimer = 0
     }
@@ -74,6 +74,6 @@ export function useGameLoop(onUpdate, fps = 60) {
     isRunning,
     fpsActual,
     start,
-    stop,
+    stop
   }
 }

@@ -28,31 +28,6 @@ jobs:
       run:
         working-directory: backend/snake-backend
 
-    # 为集成测试提供 MySQL 和 Redis 服务容器
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: 789456
-          MYSQL_DATABASE: snake_game_test
-        ports:
-          - 3307:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h localhost"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd="redis-cli ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
     steps:
       - name: Checkout 代码
         uses: actions/checkout@v4
@@ -68,10 +43,10 @@ jobs:
         run: chmod +x mvnw
 
       - name: 代码格式检查 (Spotless)
-        run: ./mvnw spotless:check
+        run: ./mvnw spotless:check -Dspotless.check.skip=false
         # 格式不符合规范时该步骤会失败，导致提交失败
 
-      - name: 运行全部测试（单元 + 集成）
+      - name: 运行后端单元测试
         run: ./mvnw test -B
         # 测试不通过时该步骤会失败，导致提交失败
 

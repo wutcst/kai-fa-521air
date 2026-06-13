@@ -13,30 +13,24 @@
  */
 
 // ==================== 常量配置 ====================
-const MAP_WIDTH = 1200 // 地图虚拟宽度
-const MAP_HEIGHT = 1200 // 地图虚拟高度
-const GRID_SIZE = 20 // 每格像素
-const TICK_RATE = 10 // 每秒 Tick 数（服务端更新频率）
+const MAP_WIDTH = 1200        // 地图虚拟宽度
+const MAP_HEIGHT = 1200       // 地图虚拟高度
+const GRID_SIZE = 20          // 每格像素
+const TICK_RATE = 10          // 每秒 Tick 数（服务端更新频率）
 const TICK_INTERVAL = 1000 / TICK_RATE
 
 // 颜色池（给不同蛇分配不同颜色）
 const SNAKE_COLORS = [
-  '#00e676',
-  '#448aff',
-  '#ff6e40',
-  '#e040fb',
-  '#ffd740',
-  '#69f0ae',
-  '#ff5252',
-  '#40c4ff',
+  '#00e676', '#448aff', '#ff6e40', '#e040fb',
+  '#ffd740', '#69f0ae', '#ff5252', '#40c4ff'
 ]
 
 // 默认方向向量
 const DIRECTIONS = {
-  up: { x: 0, y: -1 },
-  down: { x: 0, y: 1 },
-  left: { x: -1, y: 0 },
-  right: { x: 1, y: 0 },
+  up:    { x: 0, y: -1 },
+  down:  { x: 0, y: 1 },
+  left:  { x: -1, y: 0 },
+  right: { x: 1, y: 0 }
 }
 
 // ==================== Mock 游戏引擎 ====================
@@ -50,28 +44,21 @@ export class MockGameServer {
    * @param {function} onEvent 事件回调 (eventType, data) => {}
    * @param {string} mySnakeId 我的蛇ID
    */
-  constructor({
-    playerCount = 4,
-    gameDuration = 300,
-    onStateUpdate,
-    onEvent,
-    mySnakeId,
-    gameMode = 'multi',
-  }) {
+  constructor({ playerCount = 4, gameDuration = 300, onStateUpdate, onEvent, mySnakeId, gameMode = 'multi' }) {
     this.playerCount = gameMode === 'single' ? 1 : playerCount
     this.gameDuration = gameMode === 'single' ? Infinity : gameDuration
-    this.gameMode = gameMode // 'single' | 'multi'
+    this.gameMode = gameMode       // 'single' | 'multi'
     this.onStateUpdate = onStateUpdate
     this.onEvent = onEvent
     this.mySnakeId = mySnakeId
 
     // 游戏状态
-    this.snakes = {} // { id: { body, direction, color, score, kills, isAlive, speedBoost, shield, magnet } }
-    this.foods = [] // [{ x, y, type: 'normal'|'high' }]
-    this.items = [] // [{ x, y, type: 'speed'|'shield'|'magnet' }]
-    this.obstacles = [] // [{ x, y }] 障碍物
-    this.gameTime = 0 // 已运行时间（秒）
-    this.status = 'idle' // idle | countdown | playing | finished
+    this.snakes = {}           // { id: { body, direction, color, score, kills, isAlive, speedBoost, shield, magnet } }
+    this.foods = []            // [{ x, y, type: 'normal'|'high' }]
+    this.items = []            // [{ x, y, type: 'speed'|'shield'|'magnet' }]
+    this.obstacles = []        // [{ x, y }] 障碍物
+    this.gameTime = 0          // 已运行时间（秒）
+    this.status = 'idle'       // idle | countdown | playing | finished
     this.tickTimer = null
     this.foodTimer = null
     this.itemTimer = null
@@ -79,16 +66,7 @@ export class MockGameServer {
     this.lastTick = 0
 
     // 蛇名列表
-    this.snakeNames = [
-      '闪电蛇',
-      '贪吃大王',
-      '急速先锋',
-      '无敌蛇王',
-      '小菜蛇',
-      '蛇中豪杰',
-      '末日之蛇',
-      '疾风',
-    ]
+    this.snakeNames = ['闪电蛇', '贪吃大王', '急速先锋', '无敌蛇王', '小菜蛇', '蛇中豪杰', '末日之蛇', '疾风']
   }
 
   // ---- 初始化游戏 ----
@@ -108,7 +86,7 @@ export class MockGameServer {
       for (let j = 0; j < 4; j++) {
         body.push({
           x: pos.x - DIRECTIONS[initialDir].x * j,
-          y: pos.y - DIRECTIONS[initialDir].y * j,
+          y: pos.y - DIRECTIONS[initialDir].y * j
         })
       }
 
@@ -124,15 +102,15 @@ export class MockGameServer {
         isAlive: true,
         deathTime: 0,
         // 道具状态
-        speedBoost: 0, // 剩余加速时间（秒）
-        shield: false, // 是否有护盾
-        magnet: 0, // 磁铁剩余时间
+        speedBoost: 0,          // 剩余加速时间（秒）
+        shield: false,          // 是否有护盾
+        magnet: 0,              // 磁铁剩余时间
         // 速度系统：初始 0.5，每吃一个食物 +0.02，上限 2.0
         _speed: 0.5,
         _moveAccum: 0,
         // 基础信息
-        nickname: isMe ? '我' : this.snakeNames[i] || 'AI_' + i,
-        isMe,
+        nickname: isMe ? '我' : (this.snakeNames[i] || ('AI_' + i)),
+        isMe
       }
     }
 
@@ -171,7 +149,7 @@ export class MockGameServer {
 
     // 检查是否只剩一个活蛇（多人模式）
     if (this.gameMode === 'multi') {
-      const alive = Object.values(this.snakes).filter((s) => s.isAlive)
+      const alive = Object.values(this.snakes).filter(s => s.isAlive)
       if (alive.length <= 1) {
         if (alive.length === 1) alive[0].score += 200
         this._endGame()
@@ -250,7 +228,7 @@ export class MockGameServer {
     // 【规则】只有撞障碍物/撞其他蛇才会淘汰，自己身体可以穿过
 
     // 障碍物检测
-    const hitObstacle = this.obstacles.some((o) => o.x === newHead.x && o.y === newHead.y)
+    const hitObstacle = this.obstacles.some(o => o.x === newHead.x && o.y === newHead.y)
     if (hitObstacle) {
       this._eliminateSnake(snake, '撞到障碍物')
       return
@@ -282,7 +260,7 @@ export class MockGameServer {
       }
 
       // 头撞对方蛇身
-      const hitOtherBody = other.body.slice(0).some((s) => s.x === newHead.x && s.y === newHead.y)
+      const hitOtherBody = other.body.slice(0).some(s => s.x === newHead.x && s.y === newHead.y)
       if (hitOtherBody) {
         if (snake.shield) {
           // 护盾抵消
@@ -293,11 +271,7 @@ export class MockGameServer {
           this._eliminateSnake(snake, `撞到${other.nickname}身体`)
           other.score += 100
           other.kills++
-          this.onEvent?.('player_kill', {
-            killerId: otherId,
-            victimId: snake.id,
-            method: '撞击身体',
-          })
+          this.onEvent?.('player_kill', { killerId: otherId, victimId: snake.id, method: '撞击身体' })
           this._spawnDeathFoods(snake)
           return
         }
@@ -346,7 +320,7 @@ export class MockGameServer {
     const dirs = ['up', 'down', 'left', 'right']
     // 排除180度反向
     const opposites = { up: 'down', down: 'up', left: 'right', right: 'left' }
-    const valid = dirs.filter((d) => d !== opposites[snake.direction])
+    const valid = dirs.filter(d => d !== opposites[snake.direction])
 
     // 偶尔改变方向 (15% 概率)
     if (Math.random() < 0.15) {
@@ -355,10 +329,8 @@ export class MockGameServer {
       const head = snake.body[0]
       for (const food of this.foods) {
         const dist = Math.abs(food.x - head.x) + Math.abs(food.y - head.y)
-        if (
-          dist < 20 &&
-          (!targetFood || dist < Math.abs(targetFood.x - head.x) + Math.abs(targetFood.y - head.y))
-        ) {
+        if (dist < 20 && (!targetFood || dist <
+          Math.abs(targetFood.x - head.x) + Math.abs(targetFood.y - head.y))) {
           targetFood = food
         }
       }
@@ -392,7 +364,7 @@ export class MockGameServer {
       snakeId: snake.id,
       nickname: snake.nickname,
       reason,
-      time: this.gameTime,
+      time: this.gameTime
     })
 
     // 单人模式：自己死了立即结束
@@ -402,7 +374,7 @@ export class MockGameServer {
     }
 
     // 多人模式：检查是否只剩一人
-    const alive = Object.values(this.snakes).filter((s) => s.isAlive)
+    const alive = Object.values(this.snakes).filter(s => s.isAlive)
     if (alive.length <= 1) {
       if (alive.length === 1) alive[0].score += 200
       this._endGame()
@@ -412,12 +384,11 @@ export class MockGameServer {
   // ---- 死亡掉落食物 ----
   _spawnDeathFoods(snake) {
     for (const seg of snake.body) {
-      if (Math.random() < 0.3) {
-        // 30% 身体掉落食物
+      if (Math.random() < 0.3) { // 30% 身体掉落食物
         this.foods.push({
           x: seg.x,
           y: seg.y,
-          type: Math.random() < 0.2 ? 'high' : 'normal',
+          type: Math.random() < 0.2 ? 'high' : 'normal'
         })
       }
     }
@@ -431,7 +402,7 @@ export class MockGameServer {
     for (let i = 0; i < count; i++) {
       obstacles.push({
         x: Math.floor(Math.random() * (gridW - 10)) + 5,
-        y: Math.floor(Math.random() * (gridH - 10)) + 5,
+        y: Math.floor(Math.random() * (gridH - 10)) + 5
       })
     }
     return obstacles
@@ -443,7 +414,7 @@ export class MockGameServer {
       foods.push({
         x: Math.floor(Math.random() * (MAP_WIDTH / GRID_SIZE - 2)) + 1,
         y: Math.floor(Math.random() * (MAP_HEIGHT / GRID_SIZE - 2)) + 1,
-        type: Math.random() < 0.1 ? 'high' : 'normal', // 10% 高分食物
+        type: Math.random() < 0.1 ? 'high' : 'normal' // 10% 高分食物
       })
     }
     return foods
@@ -456,7 +427,7 @@ export class MockGameServer {
       items.push({
         x: Math.floor(Math.random() * (MAP_WIDTH / GRID_SIZE - 2)) + 1,
         y: Math.floor(Math.random() * (MAP_HEIGHT / GRID_SIZE - 2)) + 1,
-        type: types[Math.floor(Math.random() * types.length)],
+        type: types[Math.floor(Math.random() * types.length)]
       })
     }
     return items
@@ -472,7 +443,7 @@ export class MockGameServer {
       { x: margin, y: margin },
       { x: gridW - margin, y: margin },
       { x: margin, y: gridH - margin },
-      { x: gridW - margin, y: gridH - margin },
+      { x: gridW - margin, y: gridH - margin }
     ]
     for (let i = 0; i < Math.min(count, corners.length); i++) {
       positions.push(corners[i])
@@ -480,7 +451,7 @@ export class MockGameServer {
     for (let i = positions.length; i < count; i++) {
       positions.push({
         x: Math.floor(Math.random() * (gridW - 2 * margin)) + margin,
-        y: Math.floor(Math.random() * (gridH - 2 * margin)) + margin,
+        y: Math.floor(Math.random() * (gridH - 2 * margin)) + margin
       })
     }
     return positions
@@ -541,18 +512,9 @@ export class MockGameServer {
   }
 
   _stopTimers() {
-    if (this.tickTimer) {
-      clearInterval(this.tickTimer)
-      this.tickTimer = null
-    }
-    if (this.itemTimer) {
-      clearInterval(this.itemTimer)
-      this.itemTimer = null
-    }
-    if (this.foodTimer) {
-      clearInterval(this.foodTimer)
-      this.foodTimer = null
-    }
+    if (this.tickTimer) { clearInterval(this.tickTimer); this.tickTimer = null }
+    if (this.itemTimer) { clearInterval(this.itemTimer); this.itemTimer = null }
+    if (this.foodTimer) { clearInterval(this.foodTimer); this.foodTimer = null }
   }
 
   // ==================== 广播与结束 ====================
@@ -572,19 +534,19 @@ export class MockGameServer {
         speedBoost: snake.speedBoost,
         shield: snake.shield,
         magnet: snake.magnet,
-        isMe: snake.isMe,
+        isMe: snake.isMe
       }
     }
 
     const scoreBoard = Object.values(snakeStates)
-      .map((s) => ({
+      .map(s => ({
         id: s.id,
         nickname: s.nickname,
         score: s.score,
         kills: s.kills,
         length: s.length,
         isAlive: s.isAlive,
-        isMe: s.isMe,
+        isMe: s.isMe
       }))
       .sort((a, b) => b.score - a.score)
 
@@ -599,7 +561,7 @@ export class MockGameServer {
       gameStatus: this.status,
       mapWidth: MAP_WIDTH / GRID_SIZE,
       mapHeight: MAP_HEIGHT / GRID_SIZE,
-      gridSize: GRID_SIZE,
+      gridSize: GRID_SIZE
     })
   }
 
@@ -614,7 +576,7 @@ export class MockGameServer {
 
     // 生成结算数据
     const rankings = Object.values(this.snakes)
-      .map((s) => ({
+      .map(s => ({
         id: s.id,
         nickname: s.nickname,
         score: s.score,
@@ -623,14 +585,14 @@ export class MockGameServer {
         isAlive: s.isAlive,
         survivalTime: s.isAlive ? this.gameTime : s.deathTime,
         isMe: s.isMe,
-        color: s.color,
+        color: s.color
       }))
       .sort((a, b) => b.score - a.score)
 
     this.onEvent?.('game_over', {
       gameId: 'game_' + Date.now(),
       duration: this.gameDuration,
-      rankings,
+      rankings
     })
   }
 

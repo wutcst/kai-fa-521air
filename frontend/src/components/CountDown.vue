@@ -5,7 +5,7 @@
 <template>
   <Teleport to="body">
     <div class="countdown-overlay" v-if="visible">
-      <div class="countdown-number" :key="current" :class="{ animate: true }">
+      <div class="countdown-number" :key="current" :class="{ 'animate': true }">
         <template v-if="current > 0">{{ current }}</template>
         <template v-else>GO!</template>
       </div>
@@ -14,11 +14,11 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 
 const props = defineProps({
   /** 倒计时显示（从3开始倒数，0时显示GO） */
-  count: { type: Number, default: -1 },
+  count: { type: Number, default: -1 }
 })
 
 const emit = defineEmits(['finish'])
@@ -26,23 +26,20 @@ const emit = defineEmits(['finish'])
 const visible = ref(false)
 const current = ref(0)
 
-watch(
-  () => props.count,
-  (val) => {
-    if (val >= 0) {
-      visible.value = true
-      current.value = val
-      if (val === 0) {
-        setTimeout(() => {
-          visible.value = false
-          emit('finish')
-        }, 800)
-      }
-    } else {
-      visible.value = false
+watch(() => props.count, (val) => {
+  if (val >= 0) {
+    visible.value = true
+    current.value = val
+    if (val === 0) {
+      setTimeout(() => {
+        visible.value = false
+        emit('finish')
+      }, 800)
     }
-  },
-)
+  } else {
+    visible.value = false
+  }
+})
 </script>
 
 <style scoped>
@@ -64,17 +61,8 @@ watch(
   animation: countPop 0.6s ease-out;
 }
 @keyframes countPop {
-  0% {
-    transform: scale(2);
-    opacity: 0;
-  }
-  50% {
-    transform: scale(0.9);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
+  0% { transform: scale(2); opacity: 0; }
+  50% { transform: scale(0.9); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
 </style>

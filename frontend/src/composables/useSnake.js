@@ -18,14 +18,14 @@ const COLORS = {
   minimapBg: 'rgba(255,255,255,0.7)',
   minimapMyDot: '#43a047',
   minimapDot: '#66bb6a',
-  minimapBorder: '#c8e6c9',
+  minimapBorder: '#c8e6c9'
 }
 
 // 道具配色
 const ITEM_CONFIG = {
-  speed: { color: '#448aff', symbol: '⚡', label: '加速' },
+  speed:  { color: '#448aff', symbol: '⚡', label: '加速' },
   shield: { color: '#e040fb', symbol: '🛡', label: '护盾' },
-  magnet: { color: '#ff6e40', symbol: '🧲', label: '磁铁' },
+  magnet: { color: '#ff6e40', symbol: '🧲', label: '磁铁' }
 }
 
 /**
@@ -33,8 +33,8 @@ const ITEM_CONFIG = {
  */
 export function useSnake(canvasRef) {
   let ctx = null
-  let prevState = null // 上一帧状态（用于插值）
-  const interpolation = 0.5 // 插值因子
+  let prevState = null       // 上一帧状态（用于插值）
+  const interpolation = 0.5  // 插值因子
 
   // 画布尺寸
   const canvasWidth = ref(800)
@@ -68,7 +68,7 @@ export function useSnake(canvasRef) {
     }
     prevState = { ...state, snakes: { ...state.snakes } }
 
-    const { snakes, foods, items, obstacles, gridSize } = renderState
+    const { snakes, foods, items, obstacles, mapWidth, mapHeight, gridSize } = renderState
 
     // 1. 清屏 + 背景
     ctx.fillStyle = COLORS.bg
@@ -106,10 +106,7 @@ export function useSnake(canvasRef) {
     for (const id of Object.keys(next.snakes || {})) {
       const ps = prev.snakes?.[id]
       const ns = next.snakes[id]
-      if (!ps || !ns) {
-        interpSnakes[id] = ns
-        continue
-      }
+      if (!ps || !ns) { interpSnakes[id] = ns; continue }
 
       // 对蛇身做线性插值
       const body = ns.body.map((seg, i) => {
@@ -117,7 +114,7 @@ export function useSnake(canvasRef) {
         if (!prevSeg) return seg
         return {
           x: prevSeg.x + (seg.x - prevSeg.x) * t,
-          y: prevSeg.y + (seg.y - prevSeg.y) * t,
+          y: prevSeg.y + (seg.y - prevSeg.y) * t
         }
       })
 
@@ -137,16 +134,10 @@ export function useSnake(canvasRef) {
     ctx.strokeStyle = COLORS.gridLine
     ctx.lineWidth = 0.5
     for (let x = 0; x <= w; x += gs) {
-      ctx.beginPath()
-      ctx.moveTo(x + 0.5, 0)
-      ctx.lineTo(x + 0.5, h)
-      ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, h); ctx.stroke()
     }
     for (let y = 0; y <= h; y += gs) {
-      ctx.beginPath()
-      ctx.moveTo(0, y + 0.5)
-      ctx.lineTo(w, y + 0.5)
-      ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(w, y + 0.5); ctx.stroke()
     }
   }
 
@@ -172,27 +163,21 @@ export function useSnake(canvasRef) {
       if (food.type === 'high') {
         // 光晕
         ctx.fillStyle = COLORS.foodHighGlow
-        ctx.beginPath()
-        ctx.arc(cx, cy, gs * 0.45, 0, Math.PI * 2)
-        ctx.fill()
+        ctx.beginPath(); ctx.arc(cx, cy, gs * 0.45, 0, Math.PI * 2); ctx.fill()
         // 主体
         const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, gs * 0.35)
         gradient.addColorStop(0, '#ffffff')
         gradient.addColorStop(0.6, COLORS.foodHigh)
         gradient.addColorStop(1, '#b8860b')
         ctx.fillStyle = gradient
-        ctx.beginPath()
-        ctx.arc(cx, cy, gs * 0.35, 0, Math.PI * 2)
-        ctx.fill()
+        ctx.beginPath(); ctx.arc(cx, cy, gs * 0.35, 0, Math.PI * 2); ctx.fill()
       } else {
         // 普通食物：径向渐变圆
         const gradient = ctx.createRadialGradient(cx - 1, cy - 1, 0, cx, cy, gs * 0.28)
         gradient.addColorStop(0, '#ff8a80')
         gradient.addColorStop(1, COLORS.foodNormal)
         ctx.fillStyle = gradient
-        ctx.beginPath()
-        ctx.arc(cx, cy, gs * 0.28, 0, Math.PI * 2)
-        ctx.fill()
+        ctx.beginPath(); ctx.arc(cx, cy, gs * 0.28, 0, Math.PI * 2); ctx.fill()
       }
     }
   }
@@ -245,7 +230,7 @@ export function useSnake(canvasRef) {
       return a.isMe ? 1 : -1
     })
 
-    for (const [, snake] of sorted) {
+    for (const [id, snake] of sorted) {
       if (snake.isAlive) {
         drawSnake(snake, gs)
         drawSnakeLabel(snake, gs)
@@ -358,25 +343,25 @@ export function useSnake(canvasRef) {
       case 'up':
         positions = [
           { ex: x + eyeOffset, ey: y + eyeOffset },
-          { ex: x + gs - eyeOffset - eyeSize, ey: y + eyeOffset },
+          { ex: x + gs - eyeOffset - eyeSize, ey: y + eyeOffset }
         ]
         break
       case 'down':
         positions = [
           { ex: x + eyeOffset, ey: y + gs - eyeOffset - eyeSize },
-          { ex: x + gs - eyeOffset - eyeSize, ey: y + gs - eyeOffset - eyeSize },
+          { ex: x + gs - eyeOffset - eyeSize, ey: y + gs - eyeOffset - eyeSize }
         ]
         break
       case 'left':
         positions = [
           { ex: x + eyeOffset, ey: y + eyeOffset },
-          { ex: x + eyeOffset, ey: y + gs - eyeOffset - eyeSize },
+          { ex: x + eyeOffset, ey: y + gs - eyeOffset - eyeSize }
         ]
         break
       default: // right
         positions = [
           { ex: x + gs - eyeOffset - eyeSize, ey: y + eyeOffset },
-          { ex: x + gs - eyeOffset - eyeSize, ey: y + gs - eyeOffset - eyeSize },
+          { ex: x + gs - eyeOffset - eyeSize, ey: y + gs - eyeOffset - eyeSize }
         ]
     }
 
@@ -431,7 +416,7 @@ export function useSnake(canvasRef) {
 
   // ---- 死亡蛇渲染 ----
   function drawDeadSnake(snake, gs) {
-    const { body } = snake
+    const { body, color } = snake
     if (!body?.length) return
 
     // 死亡粒子效果（基于时间的闪烁）
@@ -439,11 +424,7 @@ export function useSnake(canvasRef) {
     const fadeAlpha = Math.max(0, 0.4 - elapsed * 0.15)
 
     for (const seg of body) {
-      ctx.fillStyle =
-        '#ff5252' +
-        Math.floor(fadeAlpha * 255)
-          .toString(16)
-          .padStart(2, '0')
+      ctx.fillStyle = '#ff5252' + Math.floor(fadeAlpha * 255).toString(16).padStart(2, '0')
       ctx.fillRect(seg.x * gs + 4, seg.y * gs + 4, gs - 8, gs - 8)
     }
 
@@ -451,8 +432,8 @@ export function useSnake(canvasRef) {
     if (fadeAlpha > 0.05) {
       for (let i = 0; i < body.length; i++) {
         const seg = body[i]
-        const px = seg.x * gs + gs / 2 + Math.sin(elapsed * 5 + i) * 8
-        const py = seg.y * gs + gs / 2 + Math.cos(elapsed * 4 + i) * 8
+        const px = seg.x * gs + gs / 2 + (Math.sin(elapsed * 5 + i) * 8)
+        const py = seg.y * gs + gs / 2 + (Math.cos(elapsed * 4 + i) * 8)
 
         ctx.fillStyle = `rgba(255,100,100,${fadeAlpha * 0.6})`
         ctx.beginPath()
@@ -492,7 +473,7 @@ export function useSnake(canvasRef) {
 
     // 蛇小点
     if (snakes) {
-      for (const [, snake] of Object.entries(snakes)) {
+      for (const [id, snake] of Object.entries(snakes)) {
         if (!snake.body?.length) continue
         const head = snake.body[0]
         ctx.fillStyle = snake.isMe ? COLORS.minimapMyDot : snake.color
@@ -526,7 +507,7 @@ export function useSnake(canvasRef) {
     const r = Math.min(255, Math.max(0, (num >> 16) + amount))
     const g = Math.min(255, Math.max(0, ((num >> 8) & 0xff) + amount))
     const b = Math.min(255, Math.max(0, (num & 0xff) + amount))
-    return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
+    return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`
   }
 
   // ---- 清理 ----
@@ -541,6 +522,6 @@ export function useSnake(canvasRef) {
     ctx,
     initContext,
     render,
-    destroy,
+    destroy
   }
 }

@@ -8,61 +8,61 @@ import { useUserStore } from '@/stores/user'
 const routes = [
   {
     path: '/',
-    redirect: '/login',
+    redirect: '/login'
   },
   {
     path: '/login',
     name: 'Login',
     component: () => import('@/views/LoginView.vue'),
-    meta: { title: '登录 - 多人联机贪吃蛇' },
+    meta: { title: '登录 - 多人联机贪吃蛇' }
   },
   {
     path: '/lobby',
     name: 'Lobby',
     component: () => import('@/views/LobbyView.vue'),
-    meta: { title: '游戏大厅', requiresAuth: true },
+    meta: { title: '游戏大厅', requiresAuth: true }
   },
   {
     path: '/room/:roomId',
     name: 'Room',
     component: () => import('@/views/RoomView.vue'),
-    meta: { title: '游戏房间', requiresAuth: true },
+    meta: { title: '游戏房间', requiresAuth: true }
   },
   {
     path: '/game/:roomId',
     name: 'Game',
     component: () => import('@/views/GameView.vue'),
-    meta: { title: '游戏中', requiresAuth: true },
+    meta: { title: '游戏中', requiresAuth: true }
   },
   {
     path: '/result/:gameId',
     name: 'Result',
     component: () => import('@/views/ResultView.vue'),
-    meta: { title: '结算页面' },
+    meta: { title: '结算页面' }
   },
   {
     path: '/history',
     name: 'History',
     component: () => import('@/views/HistoryView.vue'),
-    meta: { title: '对战记录', requiresAuth: true },
+    meta: { title: '对战记录', requiresAuth: true }
   },
   {
     path: '/ranking',
     name: 'Ranking',
     component: () => import('@/views/RankingView.vue'),
-    meta: { title: '排行榜', requiresAuth: true },
+    meta: { title: '排行榜', requiresAuth: true }
   },
   {
     path: '/guide',
     name: 'Guide',
     component: () => import('@/views/GuideView.vue'),
-    meta: { title: '新手引导', requiresAuth: true },
-  },
+    meta: { title: '新手引导', requiresAuth: true }
+  }
 ]
 
 const router = createRouter({
   history: createWebHistory(),
-  routes,
+  routes
 })
 
 /**
@@ -80,9 +80,7 @@ router.beforeEach((to, from, next) => {
     try {
       const userStore = useUserStore()
       token = userStore.token
-    } catch (_) {
-      /* store 尚未初始化 */
-    }
+    } catch (_) { /* store 尚未初始化 */ }
     // 回退到 localStorage（兼容刷新后的初始化场景）
     if (!token) {
       token = localStorage.getItem('snake_token') || ''

@@ -16,10 +16,10 @@ export const useRoomStore = defineStore('room', () => {
     maxPlayers: 6,
     status: 'waiting', // waiting | playing | finished
     hasPassword: false,
-    gameDuration: 300, // 默认5分钟（秒）
+    gameDuration: 300 // 默认5分钟（秒）
   })
-  const playerList = ref([]) // 房间内玩家列表
-  const chatMessages = ref([]) // 聊天消息列表
+  const playerList = ref([])         // 房间内玩家列表
+  const chatMessages = ref([])       // 聊天消息列表
   const isHost = computed(() => {
     const userStore = useUserStore()
     return roomInfo.value.hostId === userStore.userInfo.id
@@ -41,7 +41,7 @@ export const useRoomStore = defineStore('room', () => {
   function addMessage(msg) {
     chatMessages.value.push({
       ...msg,
-      timestamp: Date.now(),
+      timestamp: Date.now()
     })
     // 只保留最近200条消息
     if (chatMessages.value.length > 200) {
@@ -59,7 +59,7 @@ export const useRoomStore = defineStore('room', () => {
       maxPlayers: 6,
       status: 'waiting',
       hasPassword: false,
-      gameDuration: 300,
+      gameDuration: 300
     }
     playerList.value = []
     chatMessages.value = []
@@ -74,6 +74,6 @@ export const useRoomStore = defineStore('room', () => {
     setRoomInfo,
     setPlayerList,
     addMessage,
-    resetRoom,
+    resetRoom
   }
 })
