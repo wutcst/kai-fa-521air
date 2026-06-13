@@ -151,6 +151,14 @@
 					</execution>
 				</executions>
 			</plugin>
+			<!-- Surefire: 单元测试（排除需要 Docker MySQL/Redis 的集成测试） -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<excludedGroups>integration</excludedGroups>
+				</configuration>
+			</plugin>
 			<!-- Spotless: Google Java Format 代码格式自动检查/修复 -->
 			<plugin>
 				<groupId>com.diffplug.spotless</groupId>
