@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-const DEFAULT_URL = import.meta.env.VITE_WS_URL
-  || (typeof window !== 'undefined'
+const DEFAULT_URL =
+  import.meta.env.VITE_WS_URL ||
+  (typeof window !== 'undefined'
     ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/game`
     : 'ws://localhost:8080/ws/game')
 
@@ -75,9 +76,9 @@ export const useWsStore = defineStore('ws', () => {
 
   function dispatch(type, data, raw) {
     const typed = handlers.get(type)
-    if (typed) typed.forEach(fn => fn(data, raw))
+    if (typed) typed.forEach((fn) => fn(data, raw))
     const any = handlers.get('*')
-    if (any) any.forEach(fn => fn(data, raw))
+    if (any) any.forEach((fn) => fn(data, raw))
   }
 
   function forceReconnect(url = DEFAULT_URL) {
@@ -104,6 +105,6 @@ export const useWsStore = defineStore('ws', () => {
     off,
     disconnect,
     isConnected,
-    isConnecting
+    isConnecting,
   }
 })

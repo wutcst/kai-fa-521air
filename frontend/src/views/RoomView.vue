@@ -16,7 +16,9 @@
 
     <!-- 顶部信息栏 -->
     <header class="room-header">
-      <el-button @click="handleLeaveRoom" text :icon="ArrowLeft" class="back-btn">返回大厅</el-button>
+      <el-button @click="handleLeaveRoom" text :icon="ArrowLeft" class="back-btn"
+        >返回大厅</el-button
+      >
       <div class="room-title-area">
         <h3>
           🏠 {{ roomInfo.name }}
@@ -31,7 +33,13 @@
       </div>
       <div class="header-actions">
         <el-tooltip content="复制房间号">
-          <el-button @click="copyRoomId" :icon="CopyDocument" circle size="small" class="icon-btn" />
+          <el-button
+            @click="copyRoomId"
+            :icon="CopyDocument"
+            circle
+            size="small"
+            class="icon-btn"
+          />
         </el-tooltip>
       </div>
     </header>
@@ -52,10 +60,11 @@
 
         <div class="player-list">
           <div
-            v-for="(player, index) in players" :key="player.id"
+            v-for="(player, index) in players"
+            :key="player.id"
             :class="[
               'player-item',
-              { 'is-host': player.isHost, 'is-me': player.id === myId, 'is-ready': player.isReady }
+              { 'is-host': player.isHost, 'is-me': player.id === myId, 'is-ready': player.isReady },
             ]"
           >
             <span class="player-index">{{ index + 1 }}</span>
@@ -65,8 +74,12 @@
             <div class="player-info">
               <span class="player-name">
                 {{ player.nickname }}
-                <el-tag v-if="player.isHost" size="small" type="warning" effect="light">👑房主</el-tag>
-                <el-tag v-if="player.id === myId" size="small" type="success" effect="light">我</el-tag>
+                <el-tag v-if="player.isHost" size="small" type="warning" effect="light"
+                  >👑房主</el-tag
+                >
+                <el-tag v-if="player.id === myId" size="small" type="success" effect="light"
+                  >我</el-tag
+                >
               </span>
               <span class="player-status">
                 <span v-if="player.isReady" class="ready-badge">✅ 已准备</span>
@@ -129,10 +142,14 @@
               @click="handleJoinedStart"
               :disabled="!isJoinedRoomAllReady"
               class="action-btn start-btn"
-              style="margin-top: 8px;"
+              style="margin-top: 8px"
               block
             >
-              {{ isJoinedRoomAllReady ? '🎮 开始游戏' : `等待全员准备 (${readyCount}/${players.length})` }}
+              {{
+                isJoinedRoomAllReady
+                  ? '🎮 开始游戏'
+                  : `等待全员准备 (${readyCount}/${players.length})`
+              }}
             </el-button>
             <p v-if="!isJoinedRoomAllReady" class="host-hint">
               {{ `还有 ${players.length - readyCount} 人未准备` }}
@@ -167,7 +184,9 @@
               <span class="system-msg">{{ msg.text }}</span>
             </template>
             <template v-else>
-              <span class="msg-sender" :class="{ 'is-me': msg.senderId === myId }">{{ msg.senderName }}</span>
+              <span class="msg-sender" :class="{ 'is-me': msg.senderId === myId }">{{
+                msg.senderName
+              }}</span>
               <span class="msg-colon">:</span>
               <span class="msg-text">{{ msg.text }}</span>
             </template>
@@ -176,7 +195,13 @@
         </div>
 
         <div class="quick-emoji">
-          <span v-for="emoji in quickEmojis" :key="emoji" @click="sendEmoji(emoji)" class="emoji-item">{{ emoji }}</span>
+          <span
+            v-for="emoji in quickEmojis"
+            :key="emoji"
+            @click="sendEmoji(emoji)"
+            class="emoji-item"
+            >{{ emoji }}</span
+          >
         </div>
 
         <div class="chat-input-area">
@@ -204,7 +229,14 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, Lock, CopyDocument, Delete, UserFilled, Promotion } from '@element-plus/icons-vue'
+import {
+  ArrowLeft,
+  Lock,
+  CopyDocument,
+  Delete,
+  UserFilled,
+  Promotion,
+} from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useWsStore } from '@/stores/ws'
 
@@ -230,7 +262,7 @@ const roomInfo = ref({
   gameDuration: 300,
   hasPassword: false,
   password: '',
-  gameMode: 'multi' // 'single' | 'multi'
+  gameMode: 'multi', // 'single' | 'multi'
 })
 
 const seed = loadRoomSeed()
@@ -241,13 +273,9 @@ const createdByMe = ref(seed.createdByMe)
 const players = ref([])
 
 // ---- 计算属性 ----
-const emptySlots = computed(() =>
-  Math.max(0, roomInfo.value.maxPlayers - players.value.length)
-)
+const emptySlots = computed(() => Math.max(0, roomInfo.value.maxPlayers - players.value.length))
 
-const readyCount = computed(() =>
-  players.value.filter(p => p.isReady).length
-)
+const readyCount = computed(() => players.value.filter((p) => p.isReady).length)
 
 const isSingleMode = computed(() => roomInfo.value.gameMode === 'single')
 
@@ -260,17 +288,17 @@ const canStart = computed(() => {
   if (isSingleMode.value) return true
   // AI陪练模式：只有房主一人也能开始
   if (roomInfo.value.allowBots) {
-    return players.value.length >= 1 && players.value.every(p => p.isReady)
+    return players.value.length >= 1 && players.value.every((p) => p.isReady)
   }
-  return players.value.length >= 2 && players.value.every(p => p.isReady)
+  return players.value.length >= 2 && players.value.every((p) => p.isReady)
 })
 
 /** 是否所有玩家都已准备（大厅加入的房间用这个判断）
  *  单人模式只需 1 人准备即可，多人模式需全员（>=2人）准备 */
 const isJoinedRoomAllReady = computed(() => {
   if (isHost.value) return false
-  if (isSingleMode.value) return players.value.length >= 1 && players.value.every(p => p.isReady)
-  return players.value.length >= 2 && players.value.every(p => p.isReady)
+  if (isSingleMode.value) return players.value.length >= 1 && players.value.every((p) => p.isReady)
+  return players.value.length >= 2 && players.value.every((p) => p.isReady)
 })
 
 const offHandlers = []
@@ -288,7 +316,7 @@ function sendMessage() {
   wsStore.send('chat_message', {
     roomId: roomInfo.value.id,
     playerId: myId.value,
-    text
+    text,
   })
   chatInput.value = ''
 }
@@ -296,13 +324,16 @@ function sendEmoji(emoji) {
   wsStore.send('chat_message', {
     roomId: roomInfo.value.id,
     playerId: myId.value,
-    text: emoji
+    text: emoji,
   })
 }
 function scrollToBottom() {
   nextTick(() => {
     const el = chatListRef.value
-    if (el) { el.scrollTop = el.scrollHeight; showNewMsgHint.value = false }
+    if (el) {
+      el.scrollTop = el.scrollHeight
+      showNewMsgHint.value = false
+    }
   })
 }
 function onChatScroll() {
@@ -323,7 +354,7 @@ function toggleReady() {
   const sent = wsStore.send('ready', {
     roomId: roomInfo.value.id,
     playerId: myId.value,
-    ready: myReadyState.value
+    ready: myReadyState.value,
   })
   if (!sent) {
     myReadyState.value = previous
@@ -341,7 +372,7 @@ function togglePlayerReady(player) {
     roomId: roomInfo.value.id,
     playerId: myId.value,
     targetPlayerId: player.id,
-    ready: !player.isReady
+    ready: !player.isReady,
   })
   if (!sent) {
     ElMessage.error('发送失败，请检查网络连接')
@@ -350,14 +381,17 @@ function togglePlayerReady(player) {
 
 function handleKickPlayer(player) {
   ElMessageBox.confirm(`确定要踢出 ${player.nickname} 吗？`, '踢出玩家', {
-    confirmButtonText: '确定', type: 'warning'
-  }).then(() => {
-    wsStore.send('kick_player', {
-      roomId: roomInfo.value.id,
-      playerId: myId.value,
-      targetPlayerId: player.id
+    confirmButtonText: '确定',
+    type: 'warning',
+  })
+    .then(() => {
+      wsStore.send('kick_player', {
+        roomId: roomInfo.value.id,
+        playerId: myId.value,
+        targetPlayerId: player.id,
+      })
     })
-  }).catch(() => {})
+    .catch(() => {})
 }
 
 /** 房主开始游戏 */
@@ -365,7 +399,7 @@ function handleStartGame() {
   if (!canStart.value) return
   wsStore.send('start_game', {
     roomId: roomInfo.value.id,
-    playerId: myId.value
+    playerId: myId.value,
   })
 }
 
@@ -383,21 +417,33 @@ function handleJoinedStart() {
 }
 
 function handleLeaveRoom() {
-  if (countdown.value > 0) { ElMessage.warning('游戏即将开始，无法退出'); return }
+  if (countdown.value > 0) {
+    ElMessage.warning('游戏即将开始，无法退出')
+    return
+  }
   ElMessageBox.confirm('确定要退出房间吗？', '退出房间', {
-    confirmButtonText: '确定', type: 'warning'
-  }).then(() => {
-    wsStore.send('leave_room', { roomId: roomInfo.value.id, playerId: myId.value })
-    router.push('/lobby')
-  }).catch(() => {})
+    confirmButtonText: '确定',
+    type: 'warning',
+  })
+    .then(() => {
+      wsStore.send('leave_room', { roomId: roomInfo.value.id, playerId: myId.value })
+      router.push('/lobby')
+    })
+    .catch(() => {})
 }
 
 function copyRoomId() {
-  navigator.clipboard.writeText(roomInfo.value.id).then(() => {
-    ElMessage.success('房间号已复制！')
-  }).catch(() => ElMessage.info('房间号：' + roomInfo.value.id))
+  navigator.clipboard
+    .writeText(roomInfo.value.id)
+    .then(() => {
+      ElMessage.success('房间号已复制！')
+    })
+    .catch(() => ElMessage.info('房间号：' + roomInfo.value.id))
 }
-function formatDuration(s) { const m = Math.floor(s / 60); return m + '分钟' }
+function formatDuration(s) {
+  const m = Math.floor(s / 60)
+  return m + '分钟'
+}
 
 async function retryConnect() {
   isRetrying.value = true
@@ -437,7 +483,7 @@ async function connectAndJoin() {
     hasPassword: roomInfo.value.hasPassword,
     password: roomInfo.value.password || '',
     create: createdByMe.value,
-    allowBots: roomInfo.value.allowBots || false
+    allowBots: roomInfo.value.allowBots || false,
   })
 }
 
@@ -446,7 +492,7 @@ function handleRoomUpdate(data) {
   roomInfo.value = { ...roomInfo.value, ...data.roomInfo, id: data.roomId || roomInfo.value.id }
   players.value = data.players || []
   isHost.value = roomInfo.value.hostId === myId.value
-  const me = players.value.find(p => p.id === myId.value)
+  const me = players.value.find((p) => p.id === myId.value)
   myReadyState.value = me?.isReady || false
 }
 
@@ -454,15 +500,18 @@ function handleCountdown(data) {
   countdown.value = data?.seconds ?? 0
 }
 
-function handleGameStart(data) {
+function handleGameStart() {
   navigatingToGame.value = true
-  sessionStorage.setItem('current_room', JSON.stringify({
-    roomId: roomInfo.value.id,
-    gameMode: roomInfo.value.gameMode,
-    gameDuration: roomInfo.value.gameDuration,
-    maxPlayers: roomInfo.value.maxPlayers,
-    allowBots: roomInfo.value.allowBots
-  }))
+  sessionStorage.setItem(
+    'current_room',
+    JSON.stringify({
+      roomId: roomInfo.value.id,
+      gameMode: roomInfo.value.gameMode,
+      gameDuration: roomInfo.value.gameDuration,
+      maxPlayers: roomInfo.value.maxPlayers,
+      allowBots: roomInfo.value.allowBots,
+    }),
+  )
   const mode = roomInfo.value.gameMode === 'single' ? '?mode=single' : '?mode=multi'
   router.push(`/game/${roomInfo.value.id}${mode}`)
 }
@@ -477,7 +526,7 @@ function handleChatBroadcast(data) {
       senderId: data.senderId,
       senderName: data.senderName,
       text: data.text,
-      time: data.time || Date.now()
+      time: data.time || Date.now(),
     })
   }
   scrollToBottom()
@@ -493,8 +542,20 @@ function loadRoomSeed() {
 
   let savedConfig = null
   let joinedRoom = null
-  if (savedConfigRaw) { try { savedConfig = JSON.parse(savedConfigRaw) } catch {} }
-  if (joinedRoomRaw) { try { joinedRoom = JSON.parse(joinedRoomRaw) } catch {} }
+  if (savedConfigRaw) {
+    try {
+      savedConfig = JSON.parse(savedConfigRaw)
+    } catch {
+      /* noop */
+    }
+  }
+  if (joinedRoomRaw) {
+    try {
+      joinedRoom = JSON.parse(joinedRoomRaw)
+    } catch {
+      /* noop */
+    }
+  }
 
   const isSelfCreated = !!savedConfig
   // 快速匹配：无本地缓存时，maxPlayers 默认 2 而非 6
@@ -511,7 +572,7 @@ function loadRoomSeed() {
     hasPassword: savedConfig?.hasPassword || joinedRoom?.hasPassword || false,
     password: savedConfig?.password || joinedRoom?.password || '',
     gameMode,
-    allowBots
+    allowBots,
   }
 
   sessionStorage.removeItem('new_room_config')
@@ -534,7 +595,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  offHandlers.forEach(off => off())
+  offHandlers.forEach((off) => off())
   if (!navigatingToGame.value) {
     wsStore.send('leave_room', { roomId: roomInfo.value.id, playerId: myId.value })
   }
@@ -544,8 +605,10 @@ onUnmounted(() => {
 <style scoped>
 /* ===== 整体布局 ===== */
 .room-container {
-  width: 100%; height: 100vh;
-  display: flex; flex-direction: column;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: var(--bg-main);
   overflow: hidden;
 }
@@ -559,22 +622,35 @@ onUnmounted(() => {
 
 /* 连接错误横幅 */
 .connection-banner {
-  display: flex; align-items: center; justify-content: center; gap: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   padding: 10px 20px;
-  background: #fff3e0; color: #e65100;
-  font-size: 14px; font-weight: 600;
+  background: #fff3e0;
+  color: #e65100;
+  font-size: 14px;
+  font-weight: 600;
   border-bottom: 2px solid #ff9800;
   flex-shrink: 0;
   animation: shake 0.5s ease-in-out;
 }
 @keyframes shake {
-  0%,100% { transform: translateX(0); }
-  25% { transform: translateX(-4px); }
-  75% { transform: translateX(4px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
 }
 
 .room-header {
-  display: flex; align-items: center;
+  display: flex;
+  align-items: center;
   padding: 12px 20px;
   background: var(--bg-card);
   border-bottom: 1px solid var(--border-color);
@@ -582,140 +658,300 @@ onUnmounted(() => {
   box-shadow: var(--shadow-sm);
   flex-shrink: 0;
 }
-.back-btn { color: var(--primary-dark); }
-.room-title-area { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.back-btn {
+  color: var(--primary-dark);
+}
+.room-title-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 .room-title-area h3 {
-  margin: 0; font-size: 18px; color: var(--primary-dark); font-weight: 700;
-  display: flex; align-items: center; gap: 6px;
+  margin: 0;
+  font-size: 18px;
+  color: var(--primary-dark);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .room-meta {
-  display: flex; gap: 14px; font-size: 12px; color: var(--text-secondary);
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
 }
-.header-actions { margin-left: auto; }
-.icon-btn { border: 1px solid var(--border-color); }
+.header-actions {
+  margin-left: auto;
+}
+.icon-btn {
+  border: 1px solid var(--border-color);
+}
 
 /* ===== 主体双栏 ===== */
-.room-body { flex: 1; display: flex; overflow: hidden; }
+.room-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
 
 /* ===== 左侧 ===== */
 .room-left {
-  width: 340px; flex-shrink: 0;
-  display: flex; flex-direction: column;
+  width: 340px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
   border-right: 1px solid var(--border-color);
   background: var(--bg-card);
   position: relative;
 }
 .section-label {
   padding: 14px 16px 8px;
-  font-size: 13px; color: var(--text-secondary); letter-spacing: 1px;
-  display: flex; align-items: center; gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* AI陪练指示器 */
 .bot-indicator {
-  font-size: 11px; color: #7c4dff; background: #ede7f6;
-  padding: 2px 8px; border-radius: 10px;
+  font-size: 11px;
+  color: #7c4dff;
+  background: #ede7f6;
+  padding: 2px 8px;
+  border-radius: 10px;
   letter-spacing: 0;
 }
 
 /* 倒计时覆盖 */
 .countdown-overlay {
-  position: absolute; inset: 0; z-index: 100;
-  background: rgba(255,255,255,0.85);
-  display: flex; align-items: center; justify-content: center;
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .countdown-number {
-  font-size: 80px; font-weight: 900;
+  font-size: 80px;
+  font-weight: 900;
   color: var(--primary-dark);
-  text-shadow: 0 0 20px rgba(67,160,71,0.3);
+  text-shadow: 0 0 20px rgba(67, 160, 71, 0.3);
   animation: countPop 0.8s ease-out;
 }
 @keyframes countPop {
-  0% { transform: scale(2.5); opacity: 0; }
-  60% { transform: scale(0.9); opacity: 1; }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(0.9);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 /* 玩家列表 */
 .player-list {
-  flex: 1; overflow-y: auto; padding: 0 14px;
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 14px;
 }
 .player-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px; border-radius: 10px; margin-bottom: 6px;
-  background: var(--bg-main); transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 6px;
+  background: var(--bg-main);
+  transition: all 0.2s;
   border: 1px solid transparent;
 }
-.player-item:hover { border-color: var(--border-color); }
-.player-item.is-host { border-left: 3px solid #ffa726; }
-.player-item.is-me { background: #e8f5e9; border-color: #a5d6a7; }
-.player-item.is-ready { background: #f1f8e9; }
+.player-item:hover {
+  border-color: var(--border-color);
+}
+.player-item.is-host {
+  border-left: 3px solid #ffa726;
+}
+.player-item.is-me {
+  background: #e8f5e9;
+  border-color: #a5d6a7;
+}
+.player-item.is-ready {
+  background: #f1f8e9;
+}
 .player-item.empty-slot {
-  opacity: 0.45; background: #fafdf7;
+  opacity: 0.45;
+  background: #fafdf7;
 }
 .player-index {
-  width: 24px; text-align: center;
-  font-size: 12px; color: var(--text-muted); font-weight: 700;
+  width: 24px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 700;
 }
-.player-avatar { border: 2px solid var(--border-color); flex-shrink: 0; }
-.empty-avatar { opacity: 0.5; }
-.player-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.player-avatar {
+  border: 2px solid var(--border-color);
+  flex-shrink: 0;
+}
+.empty-avatar {
+  opacity: 0.5;
+}
+.player-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
 .player-name {
-  font-size: 14px; color: var(--text-primary); font-weight: 600;
-  display: flex; align-items: center; gap: 6px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.player-status { font-size: 12px; display: flex; align-items: center; gap: 10px; }
-.ready-badge { color: var(--success-color); }
-.unready-badge { color: var(--warning-color); }
-.player-level { color: var(--text-secondary); }
-.empty-text { color: var(--text-muted); }
-.bot-text { color: #7c4dff; font-weight: 500; }
+.player-status {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ready-badge {
+  color: var(--success-color);
+}
+.unready-badge {
+  color: var(--warning-color);
+}
+.player-level {
+  color: var(--text-secondary);
+}
+.empty-text {
+  color: var(--text-muted);
+}
+.bot-text {
+  color: #7c4dff;
+  font-weight: 500;
+}
 .host-player-ops {
-  display: flex; gap: 2px; flex-shrink: 0;
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
 }
 
 /* 操作栏 */
 .bottom-actions {
-  padding: 16px; border-top: 1px solid var(--border-color);
+  padding: 16px;
+  border-top: 1px solid var(--border-color);
   background: var(--bg-card);
 }
-.action-btn { width: 100%; height: 46px; font-size: 16px; border-radius: 10px; }
-.host-actions { text-align: center; }
-.start-btn { width: 100%; height: 46px; font-size: 16px; }
+.action-btn {
+  width: 100%;
+  height: 46px;
+  font-size: 16px;
+  border-radius: 10px;
+}
+.host-actions {
+  text-align: center;
+}
+.start-btn {
+  width: 100%;
+  height: 46px;
+  font-size: 16px;
+}
 .host-hint {
-  font-size: 12px; color: var(--text-muted);
-  margin-top: 8px; margin-bottom: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  margin-bottom: 0;
 }
 
 /* ===== 右侧聊天 ===== */
 .room-right {
-  flex: 1; display: flex; flex-direction: column;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   background: var(--bg-sidebar);
 }
 .chat-messages {
-  flex: 1; overflow-y: auto; padding: 8px 16px; position: relative;
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 16px;
+  position: relative;
 }
-.chat-msg { padding: 4px 0; font-size: 13px; line-height: 1.6; word-break: break-all; }
-.chat-msg.system { text-align: center; }
+.chat-msg {
+  padding: 4px 0;
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: break-all;
+}
+.chat-msg.system {
+  text-align: center;
+}
 .system-msg {
   display: inline-block;
-  background: #e8f5e9; color: var(--primary-dark);
-  font-size: 12px; padding: 2px 10px; border-radius: 10px;
+  background: #e8f5e9;
+  color: var(--primary-dark);
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 10px;
 }
-.msg-sender { color: var(--primary-dark); font-weight: 700; }
-.msg-sender.is-me { color: #2e7d32; }
-.msg-colon { color: var(--text-muted); margin: 0 2px; }
-.msg-text { color: var(--text-primary); }
+.msg-sender {
+  color: var(--primary-dark);
+  font-weight: 700;
+}
+.msg-sender.is-me {
+  color: #2e7d32;
+}
+.msg-colon {
+  color: var(--text-muted);
+  margin: 0 2px;
+}
+.msg-text {
+  color: var(--text-primary);
+}
 .new-msg-hint {
-  position: sticky; bottom: 0; text-align: center;
+  position: sticky;
+  bottom: 0;
+  text-align: center;
   background: linear-gradient(to bottom, transparent, var(--bg-sidebar));
-  color: var(--primary-color); font-size: 12px; padding: 8px 0; cursor: pointer;
+  color: var(--primary-color);
+  font-size: 12px;
+  padding: 8px 0;
+  cursor: pointer;
 }
-.quick-emoji { display: flex; gap: 4px; padding: 6px 16px; border-top: 1px solid var(--border-light); }
-.emoji-item { font-size: 18px; cursor: pointer; padding: 3px 5px; border-radius: 4px; transition: transform 0.15s; }
-.emoji-item:hover { transform: scale(1.3); background: var(--bg-hover); }
-.chat-input-area { padding: 6px 16px 14px; }
+.quick-emoji {
+  display: flex;
+  gap: 4px;
+  padding: 6px 16px;
+  border-top: 1px solid var(--border-light);
+}
+.emoji-item {
+  font-size: 18px;
+  cursor: pointer;
+  padding: 3px 5px;
+  border-radius: 4px;
+  transition: transform 0.15s;
+}
+.emoji-item:hover {
+  transform: scale(1.3);
+  background: var(--bg-hover);
+}
+.chat-input-area {
+  padding: 6px 16px 14px;
+}
 .chat-input-area :deep(.el-input__wrapper) {
   background: #fff !important;
   border-color: var(--border-color) !important;

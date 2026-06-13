@@ -34,7 +34,7 @@
 <script setup>
 defineProps({
   players: { type: Array, default: () => [] },
-  maxPlayers: { type: Number, default: 6 }
+  maxPlayers: { type: Number, default: 6 },
 })
 </script>
 
@@ -62,8 +62,12 @@ defineProps({
   margin-bottom: 6px;
   background: rgba(255, 255, 255, 0.04);
 }
-.player-item.is-ready { background: rgba(0, 230, 118, 0.08); }
-.player-item.is-host { border-left: 2px solid #ffd740; }
+.player-item.is-ready {
+  background: rgba(0, 230, 118, 0.08);
+}
+.player-item.is-host {
+  border-left: 2px solid #ffd740;
+}
 .player-info {
   display: flex;
   flex-direction: column;

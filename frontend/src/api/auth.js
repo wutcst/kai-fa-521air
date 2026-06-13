@@ -16,13 +16,15 @@ function getToken() {
   try {
     const store = useUserStore()
     if (store.token) return store.token
-  } catch (_) { /* store 尚未初始化 */ }
+  } catch (_) {
+    /* store 尚未初始化 */
+  }
   return localStorage.getItem('snake_token') || ''
 }
 
 // 带 token 的 axios 实例（用于 /me）
 const authRequest = axios.create()
-authRequest.interceptors.request.use(config => {
+authRequest.interceptors.request.use((config) => {
   const token = getToken()
   if (token) {
     config.headers.Authorization = 'Bearer ' + token

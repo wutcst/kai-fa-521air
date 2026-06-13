@@ -8,11 +8,7 @@ module.exports = {
     es2022: true,
     node: true,
   },
-  extends: [
-    'eslint:recommended',
-    'plugin:vue/vue3-recommended',
-    '@vue/eslint-config-prettier',
-  ],
+  extends: ['eslint:recommended', 'plugin:vue/vue3-recommended', '@vue/eslint-config-prettier'],
   parserOptions: {
     ecmaVersion: 'latest',
   },
@@ -21,12 +17,18 @@ module.exports = {
     'vue/multi-word-component-names': 'off',
     'no-console': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
     'no-debugger': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
-    'vue/html-self-closing': ['error', {
-      html: { void: 'always', normal: 'never', component: 'always' },
-    }],
-    'vue/max-attributes-per-line': ['warn', {
-      singleline: 3,
-      multiline: 1,
-    }],
+    'vue/html-self-closing': [
+      'error',
+      {
+        html: { void: 'always', normal: 'never', component: 'always' },
+      },
+    ],
+    'vue/max-attributes-per-line': [
+      'warn',
+      {
+        singleline: 3,
+        multiline: 1,
+      },
+    ],
   },
 }

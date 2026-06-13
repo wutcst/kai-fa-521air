@@ -179,7 +179,10 @@
             <span class="tip-icon">⌨️</span>
             <div class="tip-content">
               <h5>键盘控制</h5>
-              <p>使用 <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> 或 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 控制蛇的移动方向</p>
+              <p>
+                使用 <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> 或 <kbd>W</kbd><kbd>A</kbd
+                ><kbd>S</kbd><kbd>D</kbd> 控制蛇的移动方向
+              </p>
             </div>
           </div>
           <div class="tip-card">
@@ -268,9 +271,20 @@ function startGame() {
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
 }
-.header-left { display: flex; align-items: center; gap: 16px; }
-.back-btn { font-size: 14px; color: var(--primary-dark); }
-.page-title { font-size: 20px; font-weight: 700; color: var(--text-primary); }
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.back-btn {
+  font-size: 14px;
+  color: var(--primary-dark);
+}
+.page-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
 
 .guide-body {
   flex: 1;
@@ -306,8 +320,13 @@ function startGame() {
   animation: snake-wiggle 1.5s ease-in-out infinite;
 }
 @keyframes snake-wiggle {
-  0%, 100% { transform: rotate(-3deg); }
-  50% { transform: rotate(3deg); }
+  0%,
+  100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
 }
 
 /* 步骤区域 */
@@ -351,17 +370,35 @@ function startGame() {
   border-radius: 14px;
   padding: 24px;
   position: relative;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 .mode-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
-.mode-card.multi { border-color: #90caf9; }
-.mode-card.single { border-color: #a5d6a7; }
-.mode-card-icon { font-size: 40px; margin-bottom: 8px; }
-.mode-card h3 { font-size: 18px; font-weight: 700; margin: 0 0 12px; color: var(--text-primary); }
-.mode-card .el-tag { position: absolute; top: 20px; right: 20px; }
+.mode-card.multi {
+  border-color: #90caf9;
+}
+.mode-card.single {
+  border-color: #a5d6a7;
+}
+.mode-card-icon {
+  font-size: 40px;
+  margin-bottom: 8px;
+}
+.mode-card h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  color: var(--text-primary);
+}
+.mode-card .el-tag {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+}
 .mode-features {
   list-style: none;
   padding: 0;
@@ -388,8 +425,13 @@ function startGame() {
   animation: arrow-bounce 1.5s ease-in-out infinite;
 }
 @keyframes arrow-bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(6px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(6px);
+  }
 }
 .arrow-text {
   font-size: 14px;
@@ -410,7 +452,9 @@ function startGame() {
   padding: 22px;
   text-align: center;
   position: relative;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 .flow-card:hover {
   transform: translateY(-3px);
@@ -443,9 +487,20 @@ function startGame() {
   justify-content: center;
   margin: 0 auto 10px;
 }
-.flow-card-icon { font-size: 28px; }
-.flow-card h4 { font-size: 16px; font-weight: 700; margin: 0 0 6px; color: var(--text-primary); }
-.flow-card p { font-size: 12px; color: var(--text-muted); margin: 0 0 14px; }
+.flow-card-icon {
+  font-size: 28px;
+}
+.flow-card h4 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: var(--text-primary);
+}
+.flow-card p {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 0 14px;
+}
 .flow-steps {
   display: flex;
   align-items: center;
@@ -480,9 +535,22 @@ function startGame() {
   padding: 20px;
   text-align: center;
 }
-.feature-icon { font-size: 36px; margin-bottom: 8px; }
-.feature-card h4 { font-size: 15px; font-weight: 700; margin: 0 0 6px; color: var(--text-primary); }
-.feature-card p { font-size: 12px; color: var(--text-secondary); margin: 0 0 12px; line-height: 1.5; }
+.feature-icon {
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+.feature-card h4 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: var(--text-primary);
+}
+.feature-card p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
 
 /* 技巧区域 */
 .tips-section {
@@ -509,7 +577,12 @@ function startGame() {
   border-radius: 10px;
   border: 1px solid var(--border-light);
 }
-.tip-icon { font-size: 24px; flex-shrink: 0; width: 40px; text-align: center; }
+.tip-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  width: 40px;
+  text-align: center;
+}
 .tip-content h5 {
   font-size: 14px;
   font-weight: 700;

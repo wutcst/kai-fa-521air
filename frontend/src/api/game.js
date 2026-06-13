@@ -11,12 +11,14 @@ function getToken() {
   try {
     const store = useUserStore()
     if (store.token) return store.token
-  } catch (_) { /* store 尚未初始化 */ }
+  } catch (_) {
+    /* store 尚未初始化 */
+  }
   return localStorage.getItem('snake_token') || ''
 }
 
 const request = axios.create()
-request.interceptors.request.use(config => {
+request.interceptors.request.use((config) => {
   const token = getToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
